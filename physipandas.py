@@ -1,13 +1,8 @@
 import physipy
-from physipy import Quantity, Dimension, quantify, units
+from physipy import Quantity, Dimension, quantify, units, DimensionError
 from physipy.quantity.utils import asqarray
 
 import pandas as pd
-m = units["m"]
-s = units["s"]
-
-
-import decimal
 
 import numpy as np
 
@@ -22,9 +17,21 @@ class QuantityDtype(ExtensionDtype):
     Hence type = Quantity
     """
 
+    # each instance of QuantityDtype has a "unit" attribute that is 
+    # a Quantity object, usually with 1 value, only the dimension will be used
+    # It has a "name" attribute that is the dimension string
+    # and a "dimension" attribute, a Dimension Object
+    
+    # The construct_array_type method gives the object to call
+    # when creating a padnas object, with signature
+    # self, values, dtype=None, copy=False)
+    
     type = Quantity
     name = "quantitydtype"
     _metadata = ("unit",)
+    
+    # this will be used by QuantityArray when accessing indexes that do not
+    # exist (see .take)
     na_value = Quantity(np.nan, Dimension(None))
 
     @classmethod
@@ -90,12 +97,20 @@ class QuantityArray(ExtensionArray,
         self._data = values
         # Must pass the dimension to create a "custom" QuantityDtype, that displays with the proper unit
         #self._dtype = QuantityDtype()
-        self._dtype = QuantityDtype(values._SI_unitary_quantity)
+        if dtype is None:
+            print(f"QuantityArray: dtype is None, using values SI unitary quantity {values._SI_unitary_quantity}")
+        else:
+            if isinstance(dtype, QuantityDtype) or isinstance(dtype, Quantity):
+                if dtype.dimension != values.dimension:
+                    raise DimensionError(dtype.dimension, values.dimension)
+            dtype = QuantityDtype(values._SI_unitary_quantity)
+        self._dtype = dtype
 
     @classmethod
     def _from_sequence(cls, scalars, dtype=None, copy=False):
         """Construct a new ExtensionArray from a sequence of scalars."""
-        values = asarray(scalars)
+        #values = asarray(scalars)
+        values = asqarray(scalars)
         return cls(scalars, dtype=dtype)
 
     @classmethod
@@ -157,8 +172,9 @@ class QuantityArray(ExtensionArray,
     
     def isna(self):
         """A 1-D array indicating if each value is missing."""
-        return np.array([x.is_nan() for x in self._data], dtype=bool)
-
+        #return np.array([x.is_nan() for x in self._data], dtype=bool)
+        return self._data.is_nan() # Quantity implements this directly
+        
     def take(self, indexer, allow_fill=False, fill_value=None):
         """Take elements from an array.
         Relies on the take method defined in pandas:
@@ -282,7 +298,8 @@ class QuantityArray(ExtensionArray,
 
     @classmethod
     def _create_arithmetic_method(cls, op):
-        return cls._create_method(op)
+        #return cls._create_method(op)
+        return cls._create_method(op, coerce_to_dtype=False)
 
     @classmethod
     def _create_comparison_method(cls, op):
@@ -322,8 +339,10 @@ class QuantityArray(ExtensionArray,
                 return self
             else:
                 return QuantityArray(self.quantity.value, dtype)
-        print(f"astype not caught : {dtype}")
-        return self.__array__(dtype, copy)
+        elif isinstance(dtype, Quantity):
+            return QuantityArray(self.quantity.value, QuantityDtype(dtype))
+        #return self.__array__(dtype, copy)
+        return Quantity(self.quantity.value.astype(dtype), self.quantity.dimension)
     
     def __array__(self, dtype=None, copy=False):
         #if dtype is None or is_object_dtype(dtype):
@@ -334,7 +353,7 @@ class QuantityArray(ExtensionArray,
         #    return pd.array([str(x) for x in self.quantity], dtype=pd.StringDtype())
         #if is_string_dtype(dtype):
         #    return np.array([str(x) for x in self.quantity], dtype=str)
-        print("into array")
+        print(f"into QArray__array__ with dtype{dtype}")
         return np.array(self._data.value, dtype=dtype, copy=copy)
 
     

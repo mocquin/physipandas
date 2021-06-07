@@ -1,3 +1,8 @@
+Pandas introduction to Categorical series : 
+https://pandas.pydata.org/pandas-docs/stable/user_guide/categorical.html
+
+
+
 PS3_Error_Propagation_sp13.pdf (harvard.edu)
 http://ipl.physics.harvard.edu/wp-uploads/2013/03/PS3_Error_Propagation_sp13.pdf
 
