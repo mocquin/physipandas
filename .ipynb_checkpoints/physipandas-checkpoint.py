@@ -12,7 +12,6 @@ from pandas.core.dtypes.base import ExtensionDtype
 
 class QuantityDtype(ExtensionDtype):
     """A custom data type, to be paired with an ExtensionArray.
-    
     This basically wraps a dimension using a unitary quantity.
     Hence type = Quantity
     """
