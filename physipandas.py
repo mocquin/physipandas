@@ -3,6 +3,7 @@ from physipy import Quantity, Dimension, quantify, units, DimensionError
 from physipy.quantity.utils import asqarray
 
 import pandas as pd
+import re
 
 import numpy as np
 
@@ -10,6 +11,15 @@ from pandas.core.arrays import ExtensionArray
 from pandas.core.dtypes.base import ExtensionDtype
 
 
+from pandas.api.extensions import register_extension_dtype
+
+
+# This enables operations like ``.astype('toto')`` for the name
+# of the ExtensionDtype. Example : 
+# register_extension_dtype
+# class MyExtensionDtype(ExtensionDtype):
+#     name = "myextension"
+@register_extension_dtype
 class QuantityDtype(ExtensionDtype):
     """A custom data type, to be paired with an ExtensionArray.
     This basically wraps a dimension using a unitary quantity.
@@ -26,8 +36,10 @@ class QuantityDtype(ExtensionDtype):
     # self, values, dtype=None, copy=False)
     
     type = Quantity
-    name = "quantitydtype"
+    #name = "quantity" # see register_extension_dtype at the end
     _metadata = ("unit",)
+    # for construction from string
+    _match = re.compile(r"physipy\[(?P<unit>.+)\]")
     
     # this will be used by QuantityArray when accessing indexes that do not
     # exist (see .take)
@@ -41,18 +53,21 @@ class QuantityDtype(ExtensionDtype):
     
     #############################
     #######  To print the unit under the values when repr-ed
-    
     def __new__(cls, unit=None):
         print(f"New dtype with :{unit}")
         if isinstance(unit, QuantityDtype):
             return unit
-        elif isinstance(unit, Quantity):
+        elif isinstance(unit, str):
+            unit = cls._parse_dtype_strict(unit)
+        print("unit is", unit, type(unit))
+        if isinstance(unit, Quantity):
             #qdtype_unit = QuantityDtype(unit)
             u = object.__new__(cls)
             u.unit = unit
             return u
         else:
             raise ValueError
+
     
     @property
     def name(self):
@@ -70,7 +85,82 @@ class QuantityDtype(ExtensionDtype):
     def dimension(self):
         return self.unit.dimension
     
+    def __repr__(self):
+        """
+        Return a string representation for this object.
+        Invoked by unicode(df) in py2 only. Yields a Unicode String in both
+        py2/py3.
+        """
+        return self.name
+    
     ####################
+    
+    ###### Construction from string, to allow both series.astype("quantity")
+    #### and pretty printing
+    @classmethod
+    def _parse_dtype_strict(cls, string_unit):
+        """
+        Parses the unit, which should be a string like 
+            'physipy[ANYTHIN]'
+        """
+        eval_dict_units = physipy.units
+
+        print("_parsing_dtype_struct with ", string_unit)
+        if isinstance(string_unit, str):
+            if string_unit.startswith("physipy["):# or units.startswith("Pint["):
+                if not string_unit[-1] == "]":
+                    raise ValueError("could not construct QuantityDtype")
+                m = cls._match.search(string_unit)
+                if m is not None:
+                    string_unit = m.group("unit")
+                    actual_unit_quantity = eval_dict_units[string_unit]
+            print("parsed into quantity :", actual_unit_quantity)
+            if actual_unit_quantity is not None:
+                return actual_unit_quantity
+
+        raise ValueError("could not construct QuantityDtype")
+
+    @classmethod
+    def construct_from_string(cls, string):
+        """
+        Strict construction from a string, raise a TypeError if not
+        possible
+        """
+        eval_dict_units = physipy.units
+        
+        if not isinstance(string, str):
+            raise TypeError(
+                f"'construct_from_string' expects a string, got {type(string)}"
+            )
+        if isinstance(string, str) and (
+            string.startswith("physipy[")# or string.startswith("Pint[")
+        ):
+            # do not parse string like U as pint[U]
+            # avoid tuple to be regarded as unit
+            try:
+                print("trying to parse ", string)
+                actual_unit_quantity = cls._parse_dtype_strict(string)
+                print("actual unit ", actual_unit_quantity)
+                return cls(unit=actual_unit_quantity)
+            except ValueError:
+                pass
+        raise TypeError(f"Cannot construct a 'QuantityType' from '{string}'")
+
+    @classmethod
+    def construct_from_quantity_string(cls, string):
+        """
+        For use in QuantityArray
+         
+        Strict construction from a string, raise a TypeError if not
+        possible
+        """
+        if not isinstance(string, str):
+            raise TypeError(
+                f"'construct_from_quantity_string' expects a string, got {type(string)}"
+            )
+
+        quantity = cls.ureg.Quantity(string)
+        return cls(unit=quantity.unit)
     
 
     
@@ -92,6 +182,7 @@ class QuantityArray(ExtensionArray,
         that in an overwritten __settiem__ method.
         But, here we coerce the input values into Decimals.
         """
+        print("Constructing QuantityArray with ", values, "dtype=", dtype)
         values = quantify(values)
         self._data = values
         # Must pass the dimension to create a "custom" QuantityDtype, that displays with the proper unit
@@ -197,7 +288,6 @@ class QuantityArray(ExtensionArray,
     def _concat_same_type(cls, to_concat):
         """Concatenate multiple arrays."""
         return cls(np.concatenate([x._data for x in to_concat]))
-    
     
     
     

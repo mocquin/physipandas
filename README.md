@@ -1,6 +1,7 @@
 Pandas introduction to Categorical series : 
 https://pandas.pydata.org/pandas-docs/stable/user_guide/categorical.html
 
+https://medium.com/ibm-data-ai/text-extensions-for-pandas-tips-and-techniques-for-extending-pandas-e0c745cc9dbb
 
 
 PS3_Error_Propagation_sp13.pdf (harvard.edu)
