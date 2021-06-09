@@ -10,7 +10,10 @@ import numpy as np
 from pandas.core.arrays import ExtensionArray
 from pandas.core.dtypes.base import ExtensionDtype
 
-
+from pandas.api.types import is_integer, is_list_like, is_object_dtype, is_string_dtype
+from pandas.compat import set_function_name
+from pandas.core.arrays.base import ExtensionOpsMixin
+from pandas.core.indexers import check_array_indexer
 from pandas.api.extensions import register_extension_dtype
 
 
@@ -59,6 +62,9 @@ class QuantityDtype(ExtensionDtype):
             return unit
         elif isinstance(unit, str):
             unit = cls._parse_dtype_strict(unit)
+        elif unit is None:
+            unit = quantify(1)
+            
         print("unit is", unit, type(unit))
         if isinstance(unit, Quantity):
             #qdtype_unit = QuantityDtype(unit)
@@ -189,10 +195,11 @@ class QuantityArray(ExtensionArray,
         #self._dtype = QuantityDtype()
         if dtype is None:
             print(f"QuantityArray: dtype is None, using values SI unitary quantity {values._SI_unitary_quantity}")
+            dtype = QuantityDtype(values._SI_unitary_quantity)
         else:
-            if isinstance(dtype, QuantityDtype) or isinstance(dtype, Quantity):
-                if dtype.dimension != values.dimension:
-                    raise DimensionError(dtype.dimension, values.dimension)
+            #if isinstance(dtype, QuantityDtype) or isinstance(dtype, Quantity):
+            #    if dtype.dimension != values.dimension:
+            #        raise DimensionError(dtype.dimension, values.dimension)
             dtype = QuantityDtype(values._SI_unitary_quantity)
         self._dtype = dtype
 
@@ -203,17 +210,28 @@ class QuantityArray(ExtensionArray,
         values = asqarray(scalars)
         return cls(scalars, dtype=dtype)
 
-    @classmethod
-    def _from_factorized(cls, values, original):
-        """Reconstruct an ExtensionArray after factorization."""
-        return cls(values)
+    #@classmethod
+    #def _from_factorized(cls, values, original):
+    #    """Reconstruct an ExtensionArray after factorization."""
+    #    return cls(values)
 
     def __getitem__(self, item):
         """Select a subset of self.
         
         Called by : print(df["quanti"].values)
         """
-        return self._data[item]
+        print("in getitiem")
+        #return self._data[item]
+        if is_integer(item):
+            return self._data[item]# * self.units
+
+        item = check_array_indexer(self, item)
+
+        return self.__class__(self._data[item], self.dtype)
+    
+    def __setitem__(self, key, value):
+        print("in setitem")
+        
 
     def __len__(self) -> int:
         """Length of this array."""
@@ -228,6 +246,7 @@ class QuantityArray(ExtensionArray,
     def dtype(self):
         """An instance of 'ExtensionDtype'."""
         return self._dtype
+
 
     def _formatter(self, boxed=False):
         """Formatting function for scalar values.
@@ -270,6 +289,7 @@ class QuantityArray(ExtensionArray,
         Relies on the take method defined in pandas:
         https://github.com/pandas-dev/pandas/blob/e246c3b05924ac1fe083565a765ce847fcad3d91/pandas/core/algorithms.py#L1483
         """
+        print("in take")
         from pandas.api.extensions import take
 
         data = self._data
@@ -281,7 +301,13 @@ class QuantityArray(ExtensionArray,
         return self._from_sequence(result)
 
     def copy(self):
-        """Return a copy of the array."""
+        """Return a copy of the array.
+        
+        Used on :
+        res = df["a"] + df["b"]
+        df["c"] = res
+        """
+        print("copy quantityarray")
         return type(self)(self._data.copy())
 
     @classmethod
@@ -298,6 +324,10 @@ class QuantityArray(ExtensionArray,
     @property
     def quantity(self):
         return self._data
+    
+    @property
+    def dimension(self):
+        return self._data.dimension
     
     @classmethod
     def _create_method(cls, op, coerce_to_dtype=True):
@@ -388,7 +418,7 @@ class QuantityArray(ExtensionArray,
     @classmethod
     def _create_arithmetic_method(cls, op):
         #return cls._create_method(op)
-        return cls._create_method(op, coerce_to_dtype=False)
+        return cls._create_method(op, coerce_to_dtype=True)
 
     @classmethod
     def _create_comparison_method(cls, op):
@@ -396,6 +426,7 @@ class QuantityArray(ExtensionArray,
     
     @classmethod
     def from_1darray_quantity(cls, quantity):
+        print("in from_1darray_quantity")
         if not is_list_like(quantity.value):
             raise TypeError("quantity's magnitude is not list like")
         return cls(quantity)
@@ -423,6 +454,7 @@ class QuantityArray(ExtensionArray,
         #if isinstance(dtype, str) and (
         #    dtype.startswith("physipy[")):
         #    dtype = QuantityDtype(dtype)
+        print("In astype with", dtype)
         if isinstance(dtype, QuantityDtype):
             if dtype == self._dtype and not copy:
                 return self
@@ -450,12 +482,3 @@ class QuantityArray(ExtensionArray,
 QuantityArray._add_arithmetic_ops()
 QuantityArray._add_comparison_ops()
     
-
-
-#quantity_series = pd.Series(QuantityArray([0.1, 0.2, 0.3]*m))
-#df = pd.DataFrame({
-#    "quanti":quantity_series,
-#    "q":pd.Series(QuantityArray(np.arange(3)*s)),
-#    "qq": QuantityArray([2,.3, 4], dtype=m),
-#})
-#print(df)
