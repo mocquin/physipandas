@@ -7,6 +7,7 @@ import re
 
 import numpy as np
 
+from pandas import DataFrame
 from pandas.core.arrays import ExtensionArray
 from pandas.core.dtypes.base import ExtensionDtype
 
@@ -14,7 +15,7 @@ from pandas.api.types import is_integer, is_list_like, is_object_dtype, is_strin
 from pandas.compat import set_function_name
 from pandas.core.arrays.base import ExtensionOpsMixin
 from pandas.core.indexers import check_array_indexer
-from pandas.api.extensions import register_extension_dtype
+from pandas.api.extensions import register_extension_dtype, register_dataframe_accessor, register_series_accessor
 
 
 # This enables operations like ``.astype('toto')`` for the name
@@ -57,19 +58,21 @@ class QuantityDtype(ExtensionDtype):
     #############################
     #######  To print the unit under the values when repr-ed
     def __new__(cls, unit=None):
-        print(f"New dtype with :{unit}")
+        print("QDTYPE : new with", unit, "of type", type(unit))
         if isinstance(unit, QuantityDtype):
+            print("QDTYPE : new already a QDTYPE, returning it", unit)
             return unit
         elif isinstance(unit, str):
             unit = cls._parse_dtype_strict(unit)
         elif unit is None:
+            print("QDTYPE : new is None, using quantify(1)")
             unit = quantify(1)
             
-        print("unit is", unit, type(unit))
         if isinstance(unit, Quantity):
             #qdtype_unit = QuantityDtype(unit)
             u = object.__new__(cls)
             u.unit = unit
+            print("returning ", u, "with .unit", u.unit)
             return u
         else:
             raise ValueError
@@ -111,7 +114,6 @@ class QuantityDtype(ExtensionDtype):
         """
         eval_dict_units = physipy.units
 
-        print("_parsing_dtype_struct with ", string_unit)
         if isinstance(string_unit, str):
             if string_unit.startswith("physipy["):# or units.startswith("Pint["):
                 if not string_unit[-1] == "]":
@@ -120,7 +122,6 @@ class QuantityDtype(ExtensionDtype):
                 if m is not None:
                     string_unit = m.group("unit")
                     actual_unit_quantity = eval_dict_units[string_unit]
-            print("parsed into quantity :", actual_unit_quantity)
             if actual_unit_quantity is not None:
                 return actual_unit_quantity
 
@@ -132,6 +133,7 @@ class QuantityDtype(ExtensionDtype):
         Strict construction from a string, raise a TypeError if not
         possible
         """
+        print("QDTYPE : construct_from_string with", string)
         eval_dict_units = physipy.units
         
         if not isinstance(string, str):
@@ -144,9 +146,8 @@ class QuantityDtype(ExtensionDtype):
             # do not parse string like U as pint[U]
             # avoid tuple to be regarded as unit
             try:
-                print("trying to parse ", string)
                 actual_unit_quantity = cls._parse_dtype_strict(string)
-                print("actual unit ", actual_unit_quantity)
+                print("QDTYPE : construct_from_string, actual unit found", actual_unit_quantity, f". Returning QuantityDtype({actual_unit_quantity})")
                 return cls(unit=actual_unit_quantity)
             except ValueError:
                 pass
@@ -160,6 +161,7 @@ class QuantityDtype(ExtensionDtype):
         Strict construction from a string, raise a TypeError if not
         possible
         """
+        print("QDTYPE : construct_from_quantity_string")
         if not isinstance(string, str):
             raise TypeError(
                 f"'construct_from_quantity_string' expects a string, got {type(string)}"
@@ -188,18 +190,21 @@ class QuantityArray(ExtensionArray,
         that in an overwritten __settiem__ method.
         But, here we coerce the input values into Decimals.
         """
-        print("Constructing QuantityArray with ", values, "dtype=", dtype)
+        # check if we have a list like [<Quantity:[1, 2, 3], m>]
+        if isinstance(values, list) and len(values) == 1 and isinstance(values[0], Quantity):
+            values = values[0]
+        print("QARRAY : init with", values, 'of type', type(values))
         values = quantify(values)
+        print("QARRAY : init quantified values ", values, "with len", len(values))
         self._data = values
         # Must pass the dimension to create a "custom" QuantityDtype, that displays with the proper unit
         #self._dtype = QuantityDtype()
         if dtype is None:
-            print(f"QuantityArray: dtype is None, using values SI unitary quantity {values._SI_unitary_quantity}")
             dtype = QuantityDtype(values._SI_unitary_quantity)
         else:
-            #if isinstance(dtype, QuantityDtype) or isinstance(dtype, Quantity):
-            #    if dtype.dimension != values.dimension:
-            #        raise DimensionError(dtype.dimension, values.dimension)
+            if isinstance(dtype, QuantityDtype) or isinstance(dtype, Quantity):
+                if dtype.dimension != values.dimension:
+                    raise DimensionError(dtype.dimension, values.dimension)
             dtype = QuantityDtype(values._SI_unitary_quantity)
         self._dtype = dtype
 
@@ -220,7 +225,6 @@ class QuantityArray(ExtensionArray,
         
         Called by : print(df["quanti"].values)
         """
-        print("in getitiem")
         #return self._data[item]
         if is_integer(item):
             return self._data[item]# * self.units
@@ -289,8 +293,8 @@ class QuantityArray(ExtensionArray,
         Relies on the take method defined in pandas:
         https://github.com/pandas-dev/pandas/blob/e246c3b05924ac1fe083565a765ce847fcad3d91/pandas/core/algorithms.py#L1483
         """
-        print("in take")
         from pandas.api.extensions import take
+        print("into take")
 
         data = self._data
         if allow_fill and fill_value is None:
@@ -307,12 +311,15 @@ class QuantityArray(ExtensionArray,
         res = df["a"] + df["b"]
         df["c"] = res
         """
-        print("copy quantityarray")
-        return type(self)(self._data.copy())
+        print("into copy")
+        print("data is ", self._data.copy())
+        print("dtype is", self._dtype)
+        return type(self)(self._data.copy(), self._dtype)
 
     @classmethod
     def _concat_same_type(cls, to_concat):
         """Concatenate multiple arrays."""
+        print("QARRAY : _concat_same_type with", to_concat)
         return cls(np.concatenate([x._data for x in to_concat]))
     
     
@@ -426,7 +433,6 @@ class QuantityArray(ExtensionArray,
     
     @classmethod
     def from_1darray_quantity(cls, quantity):
-        print("in from_1darray_quantity")
         if not is_list_like(quantity.value):
             raise TypeError("quantity's magnitude is not list like")
         return cls(quantity)
@@ -454,7 +460,6 @@ class QuantityArray(ExtensionArray,
         #if isinstance(dtype, str) and (
         #    dtype.startswith("physipy[")):
         #    dtype = QuantityDtype(dtype)
-        print("In astype with", dtype)
         if isinstance(dtype, QuantityDtype):
             if dtype == self._dtype and not copy:
                 return self
@@ -474,11 +479,94 @@ class QuantityArray(ExtensionArray,
         #    return pd.array([str(x) for x in self.quantity], dtype=pd.StringDtype())
         #if is_string_dtype(dtype):
         #    return np.array([str(x) for x in self.quantity], dtype=str)
-        print(f"into QArray__array__ with dtype{dtype}")
         return np.array(self._data.value, dtype=dtype, copy=copy)
 
     
 # FOR ExtensionOpsMixin to work    
 QuantityArray._add_arithmetic_ops()
 QuantityArray._add_comparison_ops()
-    
+
+
+
+@register_dataframe_accessor("physipy")
+class PhysipyDataFrameAccessor(object):
+    def __init__(self, pandas_obj):
+        self._obj = pandas_obj
+
+    def quantify(self, level=-1):
+        df = self._obj
+        df_columns = df.columns.to_frame()
+        unit_col_name = df_columns.columns[level]
+        units = df_columns[unit_col_name]
+        df_columns = df_columns.drop(columns=unit_col_name)
+
+        df_new = DataFrame(
+            {i: QuantityArray(df.values[:, i], unit) for i, unit in enumerate(units.values)}
+        )
+
+        df_new.columns = df_columns.index.droplevel(unit_col_name)
+        df_new.index = df.index
+
+        return df_new
+
+    def dequantify(self):
+        def formatter_func(units):
+            #formatter = "{:" + units._REGISTRY.default_format + "}"
+            #formatter = "{:"+str(units.str_SI_unit())+"}"
+            formatter = "{:}"
+            return formatter.format(units)
+
+        df = self._obj
+
+        df_columns = df.columns.to_frame()
+        df_columns["units"] = [
+            formatter_func(df[col].values.dimension) for col in df.columns
+        ]
+        from collections import OrderedDict
+
+        data_for_df = OrderedDict()
+        for i, col in enumerate(df.columns):
+            data_for_df[tuple(df_columns.iloc[i])] = df[col].values._data
+        df_new = DataFrame(data_for_df, columns=data_for_df.keys(),
+                          index=range(len(data_for_df)))
+
+        df_new.columns.names = df.columns.names + ["unit"]
+        df_new.index = df.index
+
+        return df_new
+
+    def to_base_units(self):
+        obj = self._obj
+        df = self._obj
+        index = object.__getattribute__(obj, "index")
+        # name = object.__getattribute__(obj, '_name')
+        return DataFrame(
+            {col: df[col].physipy.to_base_units() for col in df.columns}, index=index
+        )
+
+
+@register_series_accessor("physipy")
+class PhysipySeriesAccessor(object):
+    def __init__(self, pandas_obj):
+        self._validate(pandas_obj)
+        self.pandas_obj = pandas_obj
+        self.quantity = pandas_obj.values.quantity
+        self.dimension = pandas_obj.values.dimension
+        self._SI_unitary_quantity = pandas_obj.values._data._SI_unitary_quantity
+        self._index = pandas_obj.index
+        self._name = pandas_obj.name
+
+    @staticmethod
+    def _validate(obj):
+        if not is_physipy_type(obj):
+            raise AttributeError(
+                "Cannot use 'physipy' accessor on objects of "
+                "dtype '{}'.".format(obj.dtype)
+            )
+
+def is_physipy_type(obj):
+    t = getattr(obj, "dtype", obj)
+    try:
+        return isinstance(t, QuantityDtype) or issubclass(t, QuantityDtype)
+    except Exception:
+        return False
