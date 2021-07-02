@@ -1,6 +1,6 @@
 from pandas.api.extensions import register_series_accessor
 
-from .dtype import QuantityDtype
+from .extension import QuantityDtype
 
 
 @register_series_accessor("physipy")

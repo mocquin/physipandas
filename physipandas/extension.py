@@ -190,13 +190,17 @@ class QuantityArray(ExtensionArray,
         that in an overwritten __settiem__ method.
         But, here we coerce the input values into Decimals.
         """
+        print("ENTERING QARRAY with", values, dtype, copy)
+
         # check if we have a list like [<Quantity:[1, 2, 3], m>]
-        if isinstance(values, list) and len(values) == 1 and isinstance(values[0], Quantity):
+        if (isinstance(values, list) or isinstance(values, np.ndarray)) and len(values) == 1 and isinstance(values[0], Quantity):
+            print("input was list like keeping first element of", values)
             values = values[0]
         print("QARRAY : init with", values, 'of type', type(values))
         values = quantify(values)
-        print("QARRAY : init quantified values ", values, "with len", len(values))
+        print("data is set to", values, "with len", len(values), values.size)
         self._data = values
+        print("len values", len(self._data))
         # Must pass the dimension to create a "custom" QuantityDtype, that displays with the proper unit
         #self._dtype = QuantityDtype()
         if dtype is None:
@@ -206,14 +210,17 @@ class QuantityArray(ExtensionArray,
                 if dtype.dimension != values.dimension:
                     raise DimensionError(dtype.dimension, values.dimension)
             dtype = QuantityDtype(values._SI_unitary_quantity)
+        print("dtype is then set to ", dtype)
         self._dtype = dtype
 
     @classmethod
     def _from_sequence(cls, scalars, dtype=None, copy=False):
         """Construct a new ExtensionArray from a sequence of scalars."""
+        print("trying from sequence ", scalars, len(scalars[0]))
         #values = asarray(scalars)
-        values = asqarray(scalars)
-        return cls(scalars, dtype=dtype)
+        #values = asqarray(scalars)
+        
+        return cls(scalars[0], dtype=dtype)
 
     #@classmethod
     #def _from_factorized(cls, values, original):
@@ -239,6 +246,7 @@ class QuantityArray(ExtensionArray,
 
     def __len__(self) -> int:
         """Length of this array."""
+        print("Length of QuantityArray", len(self._data))
         return len(self._data)
 
     @property
@@ -435,6 +443,7 @@ class QuantityArray(ExtensionArray,
     def from_1darray_quantity(cls, quantity):
         if not is_list_like(quantity.value):
             raise TypeError("quantity's magnitude is not list like")
+        print("from 1darray", quantity)
         return cls(quantity)
     
     #################### END ExtensionOpsMixin
@@ -460,6 +469,7 @@ class QuantityArray(ExtensionArray,
         #if isinstance(dtype, str) and (
         #    dtype.startswith("physipy[")):
         #    dtype = QuantityDtype(dtype)
+        print("in astype", dtype)
         if isinstance(dtype, QuantityDtype):
             if dtype == self._dtype and not copy:
                 return self
@@ -479,6 +489,8 @@ class QuantityArray(ExtensionArray,
         #    return pd.array([str(x) for x in self.quantity], dtype=pd.StringDtype())
         #if is_string_dtype(dtype):
         #    return np.array([str(x) for x in self.quantity], dtype=str)
+        print("in array", dtype)
+
         return np.array(self._data.value, dtype=dtype, copy=copy)
 
     
