@@ -50,8 +50,9 @@ class QuantityDtype(ExtensionDtype):
     na_value = Quantity(np.nan, Dimension(None))
 
     @classmethod
-    def construct_array_type(cls):
+    def construct_array_type(cls, *args):
         """Return the array type associated with this dtype."""
+        print("calling qARRY with", args)
         return QuantityArray
     
     
@@ -195,10 +196,10 @@ class QuantityArray(ExtensionArray,
         # check if we have a list like [<Quantity:[1, 2, 3], m>]
         if (isinstance(values, list) or isinstance(values, np.ndarray)) and len(values) == 1 and isinstance(values[0], Quantity):
             print("input was list like keeping first element of", values)
-            values = values[0]
+            values = values
         print("QARRAY : init with", values, 'of type', type(values))
         values = quantify(values)
-        print("data is set to", values, "with len", len(values), values.size)
+        print("data is set to", values, "with len", len(values), values.size, type(values))
         self._data = values
         print("len values", len(self._data))
         # Must pass the dimension to create a "custom" QuantityDtype, that displays with the proper unit
@@ -215,12 +216,17 @@ class QuantityArray(ExtensionArray,
 
     @classmethod
     def _from_sequence(cls, scalars, dtype=None, copy=False):
-        """Construct a new ExtensionArray from a sequence of scalars."""
-        print("trying from sequence ", scalars, len(scalars[0]))
-        #values = asarray(scalars)
+        """Construct a new ExtensionArray from a sequence of scalars.
+        Called by :
+            a = pd.Series([1, 2, 3], dtype='physipy[m]')
+            a = pd.Series([1, 2, 3]*m, dtype='physipy[m]')
+            
+        """
+        print("trying from sequence ", scalars, len(scalars), dtype)
+        values = asqarray(scalars)
         #values = asqarray(scalars)
         
-        return cls(scalars[0], dtype=dtype)
+        return cls(values, dtype=dtype)
 
     #@classmethod
     #def _from_factorized(cls, values, original):

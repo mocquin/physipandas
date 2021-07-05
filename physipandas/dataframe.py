@@ -1,6 +1,7 @@
 from pandas.api.extensions import register_dataframe_accessor
+from pandas import DataFrame
 
-from .extension import QuantityDtype
+from .extension import QuantityDtype, QuantityArray
 
 
 @register_dataframe_accessor("physipy")
@@ -9,6 +10,9 @@ class PhysipyDataFrameAccessor(object):
         self._obj = pandas_obj
 
     def quantify(self, level=-1):
+        """
+        
+        """
         df = self._obj
         df_columns = df.columns.to_frame()
         unit_col_name = df_columns.columns[level]
