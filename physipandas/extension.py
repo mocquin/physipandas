@@ -52,28 +52,23 @@ class QuantityDtype(ExtensionDtype):
     @classmethod
     def construct_array_type(cls, *args):
         """Return the array type associated with this dtype."""
-        print("calling qARRY with", args)
         return QuantityArray
     
     
     #############################
     #######  To print the unit under the values when repr-ed
     def __new__(cls, unit=None):
-        print("QDTYPE : new with", unit, "of type", type(unit))
         if isinstance(unit, QuantityDtype):
-            print("QDTYPE : new already a QDTYPE, returning it", unit)
             return unit
         elif isinstance(unit, str):
             unit = cls._parse_dtype_strict(unit)
         elif unit is None:
-            print("QDTYPE : new is None, using quantify(1)")
             unit = quantify(1)
             
         if isinstance(unit, Quantity):
             #qdtype_unit = QuantityDtype(unit)
             u = object.__new__(cls)
             u.unit = unit
-            print("returning ", u, "with .unit", u.unit)
             return u
         else:
             raise ValueError
@@ -134,7 +129,6 @@ class QuantityDtype(ExtensionDtype):
         Strict construction from a string, raise a TypeError if not
         possible
         """
-        print("QDTYPE : construct_from_string with", string)
         eval_dict_units = physipy.units
         
         if not isinstance(string, str):
@@ -148,7 +142,6 @@ class QuantityDtype(ExtensionDtype):
             # avoid tuple to be regarded as unit
             try:
                 actual_unit_quantity = cls._parse_dtype_strict(string)
-                print("QDTYPE : construct_from_string, actual unit found", actual_unit_quantity, f". Returning QuantityDtype({actual_unit_quantity})")
                 return cls(unit=actual_unit_quantity)
             except ValueError:
                 pass
@@ -162,7 +155,6 @@ class QuantityDtype(ExtensionDtype):
         Strict construction from a string, raise a TypeError if not
         possible
         """
-        print("QDTYPE : construct_from_quantity_string")
         if not isinstance(string, str):
             raise TypeError(
                 f"'construct_from_quantity_string' expects a string, got {type(string)}"
@@ -191,17 +183,12 @@ class QuantityArray(ExtensionArray,
         that in an overwritten __settiem__ method.
         But, here we coerce the input values into Decimals.
         """
-        print("ENTERING QARRAY with", values, dtype, copy)
 
         # check if we have a list like [<Quantity:[1, 2, 3], m>]
         if (isinstance(values, list) or isinstance(values, np.ndarray)) and len(values) == 1 and isinstance(values[0], Quantity):
-            print("input was list like keeping first element of", values)
             values = values
-        print("QARRAY : init with", values, 'of type', type(values))
         values = quantify(values)
-        print("data is set to", values, "with len", len(values), values.size, type(values))
         self._data = values
-        print("len values", len(self._data))
         # Must pass the dimension to create a "custom" QuantityDtype, that displays with the proper unit
         #self._dtype = QuantityDtype()
         if dtype is None:
@@ -211,7 +198,6 @@ class QuantityArray(ExtensionArray,
                 if dtype.dimension != values.dimension:
                     raise DimensionError(dtype.dimension, values.dimension)
             dtype = QuantityDtype(values._SI_unitary_quantity)
-        print("dtype is then set to ", dtype)
         self._dtype = dtype
 
     @classmethod
@@ -222,7 +208,6 @@ class QuantityArray(ExtensionArray,
             a = pd.Series([1, 2, 3]*m, dtype='physipy[m]')
             
         """
-        print("trying from sequence ", scalars, len(scalars), dtype)
         values = asqarray(scalars)
         #values = asqarray(scalars)
         
@@ -252,7 +237,6 @@ class QuantityArray(ExtensionArray,
 
     def __len__(self) -> int:
         """Length of this array."""
-        print("Length of QuantityArray", len(self._data))
         return len(self._data)
 
     @property
@@ -308,7 +292,6 @@ class QuantityArray(ExtensionArray,
         https://github.com/pandas-dev/pandas/blob/e246c3b05924ac1fe083565a765ce847fcad3d91/pandas/core/algorithms.py#L1483
         """
         from pandas.api.extensions import take
-        print("into take")
 
         data = self._data
         if allow_fill and fill_value is None:
@@ -325,15 +308,11 @@ class QuantityArray(ExtensionArray,
         res = df["a"] + df["b"]
         df["c"] = res
         """
-        print("into copy")
-        print("data is ", self._data.copy())
-        print("dtype is", self._dtype)
         return type(self)(self._data.copy(), self._dtype)
 
     @classmethod
     def _concat_same_type(cls, to_concat):
         """Concatenate multiple arrays."""
-        print("QARRAY : _concat_same_type with", to_concat)
         return cls(np.concatenate([x._data for x in to_concat]))
     
     
@@ -449,7 +428,6 @@ class QuantityArray(ExtensionArray,
     def from_1darray_quantity(cls, quantity):
         if not is_list_like(quantity.value):
             raise TypeError("quantity's magnitude is not list like")
-        print("from 1darray", quantity)
         return cls(quantity)
     
     #################### END ExtensionOpsMixin
@@ -475,7 +453,6 @@ class QuantityArray(ExtensionArray,
         #if isinstance(dtype, str) and (
         #    dtype.startswith("physipy[")):
         #    dtype = QuantityDtype(dtype)
-        print("in astype", dtype)
         if isinstance(dtype, QuantityDtype):
             if dtype == self._dtype and not copy:
                 return self
@@ -495,8 +472,6 @@ class QuantityArray(ExtensionArray,
         #    return pd.array([str(x) for x in self.quantity], dtype=pd.StringDtype())
         #if is_string_dtype(dtype):
         #    return np.array([str(x) for x in self.quantity], dtype=str)
-        print("in array", dtype)
-
         return np.array(self._data.value, dtype=dtype, copy=copy)
 
     
