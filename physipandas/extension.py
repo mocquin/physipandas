@@ -18,37 +18,97 @@ from pandas.core.indexers import check_array_indexer
 from pandas.api.extensions import register_extension_dtype, register_dataframe_accessor, register_series_accessor
 
 
-# This enables operations like ``.astype('toto')`` for the name
-# of the ExtensionDtype. Example : 
-# register_extension_dtype
-# class MyExtensionDtype(ExtensionDtype):
-#     name = "myextension"
+
 @register_extension_dtype
 class QuantityDtype(ExtensionDtype):
     """A custom data type, to be paired with an ExtensionArray.
     This basically wraps a dimension using a unitary quantity.
-    Hence type = Quantity
-    """
 
-    # each instance of QuantityDtype has a "unit" attribute that is 
-    # a Quantity object, usually with 1 value, only the dimension will be used
-    # It has a "name" attribute that is the dimension string
-    # and a "dimension" attribute, a Dimension Object
+    For guidelines on how to write this class : 
+    https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.api.extensions.ExtensionDtype.html
     
-    # The construct_array_type method gives the object to call
-    # when creating a padnas object, with signature
-    # self, values, dtype=None, copy=False)
+    We subclass from https://github.com/pandas-dev/pandas/blob/f00ed8f47020034e752baf0250483053340971b0/pandas/core/dtypes/base.py#L35
     
+    The interface includes the following abstract methods that must be implemented by subclasses:
+     - [X] : type : The scalar type for the array, ut’s expected ExtensionArray[item] returns an
+     instance of ExtensionDtype.type for scalar item : hence we use Quantity
+     - [X] : name : property that returns the string f"physipy[{self.unit.dimension.str_SI_unit()}]", a string identifying the data type.
+     Will be used for display in, e.g. Series.dtype
+     - [X] : construct_array_type : return QuantityArray
+
+
+    The following attributes and methods influence the behavior of the dtype in pandas operations
+     - [X] : _is_numeric : returns True for now, but should it since we are not a plain number ?. If not over
+     riden , returns False by inheritance of ExtensionDtype
+     - [X] : _is_boolean : returns False by inheritance of ExtensionDtype
+     - [X] : _get_common_dtype : for now inherite from ExtensionDtype at https://github.com/pandas-dev/pandas/blob/f00ed8f47020034e752baf0250483053340971b0/pandas/core/dtypes/base.py#L335
+
+    The na_value class attribute can be used to set the default NA value for this type.
+    numpy.nan is used by default.
+     - [X] : na_value : we overide this with na_value = Quantity(np.nan, Dimension(None))
+
+
+    ExtensionDtypes are required to be hashable. The base class provides a default implementation,
+    which relies on the _metadata class attribute. _metadata should be a tuple containing the 
+    strings that define your data type. For example, with PeriodDtype that’s the freq attribute.
+    If you have a parametrized dtype you should set the ``_metadata`` class property.
+    Ideally, the attributes in _metadata will match the parameters to your ExtensionDtype.__init__ 
+    (if any). If any of the attributes in _metadata don’t implement the standard __eq__ or __hash__, 
+    the default implementations here will not work.
+    - [X] : _metadata : QuantityDtype are parametrized by a physical quantity, so we rely on the hash of the
+    quantity to hash the Dtype.
+    
+    
+    Methods
+     - [X] : construct_array_type() : Return the array type associated with this dtype : QuantityArray
+     - [X] : construct_from_string(string) : Construct this type from a string. See [the doc of ExtensionDtype.construct_from_string]( https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.api.extensions.ExtensionDtype.construct_from_string.html#pandas.api.extensions.ExtensionDtype.construct_from_string.)
+    ```
+    Construct this type from a string.
+    
+    This is useful mainly for data types that accept parameters. For example, a period dtype 
+    accepts a frequency parameter that can be set as period[H] (where H means hourly frequency).
+    ```
+    For this we use a string parsing of the style `physipy[m]` for meter.
+     - [X] : is_dtype(dtype) : Check if we match ‘dtype’. For now we use the default behaviour 
+     given [here](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.api.extensions.ExtensionDtype.is_dtype.html#pandas.api.extensions.ExtensionDtype.is_dtype).
+    
+    
+     - kind [X] : use the default from inheritance : This should match the NumPy dtype used when the array is
+        converted to an ndarray, which is probably 'O' for object if
+        the extension type cannot be represented as a built-in NumPy
+        type. See : https://github.com/pandas-dev/pandas/blob/f00ed8f47020034e752baf0250483053340971b0/pandas/core/dtypes/base.py#L163
+
+    
+    """
+    
+    # The scalar type for the array, it’s expected ExtensionArray[item] returns an
+    # instance of ExtensionDtype.type for scalar item : hence we use Quantity
     type = Quantity
-    #name = "quantity" # see register_extension_dtype at the end
+    
+    
+    # ExtensionDtypes are required to be hashable. The base class provides a default implementation,
+    # which relies on the _metadata class attribute. _metadata should be a tuple containing the 
+    # strings that define your data type. For example, with PeriodDtype that’s the freq attribute.
+    # If you have a parametrized dtype you should set the ``_metadata`` class property.
+    # Ideally, the attributes in _metadata will match the parameters to your ExtensionDtype.__init__ 
+    # (if any). If any of the attributes in _metadata don’t implement the standard __eq__ or __hash__, 
+    # the default implementations here will not work. QuantityDtype are parametrized by a
+    # physical quantity, so we rely on the hash of the quantity to hash the Dtype.
     _metadata = ("unit",)
+    
+    
     # for construction from string
     _match = re.compile(r"physipy\[(?P<unit>.+)\]")
     
+    
     # this will be used by QuantityArray when accessing indexes that do not
     # exist (see .take)
+    # The na_value class attribute can be used to set the default NA value for this type.
+    # numpy.nan is used by default : we overide this with na_value = Quantity(np.nan, Dimension(None))
     na_value = Quantity(np.nan, Dimension(None))
 
+    
+    #  Return the array type associated with this dtype : QuantityArray
     @classmethod
     def construct_array_type(cls, *args):
         """Return the array type associated with this dtype."""
@@ -73,7 +133,8 @@ class QuantityDtype(ExtensionDtype):
         else:
             raise ValueError
 
-    
+    # property that returns a string identifying the data type.
+    # Will be used for display in, e.g. Series.dtype
     @property
     def name(self):
         """
@@ -123,6 +184,11 @@ class QuantityDtype(ExtensionDtype):
 
         raise ValueError("could not construct QuantityDtype")
 
+        
+        
+    # Construct this type from a string. Construct this type from a string.
+    # This is useful mainly for data types that accept parameters. For example, a period dtype 
+    # accepts a frequency parameter that can be set as period[H] (where H means hourly frequency).
     @classmethod
     def construct_from_string(cls, string):
         """
@@ -163,7 +229,14 @@ class QuantityDtype(ExtensionDtype):
         quantity = cls.ureg.Quantity(string)
         return cls(unit=quantity.unit)
     
-
+    
+    # returns True for now, but should it since we are not a plain number ?. If not over
+    # riden , returns False by inheritance of ExtensionDtype
+    @property
+    def _is_numeric(self):
+        return True
+    
+    
     
 from pandas.core.arrays.base import ExtensionOpsMixin
 # for ExtensionOpsMixin
@@ -279,6 +352,41 @@ class QuantityArray(ExtensionArray,
             )
 
         return formatting_function
+    
+    def value_counts(self, dropna=True):
+        """
+        From https://github.com/hgrecco/pint-pandas/blob/04d4ed7befb42d3c830885d7f39997eac5392af3/pint_pandas/pint_array.py
+        """
+        #"""
+        #Returns a Series containing counts of each category.
+        #Every category will have an entry, even those with a count of 0.
+        #Parameters
+        #----------
+        #dropna : boolean, default True
+        #    Don't include counts of NaN.
+        #Returns
+        #-------
+        #counts : Series
+        #See Also
+        #--------
+        #Series.value_counts
+        #"""
+
+        from pandas import Series
+        from pandas.core.describe import describe_ndframe
+
+        # compute counts on the data with no nans
+        #data = self._data
+        #if dropna:
+        #    data = data[~np.isnan(data)]
+        #print(data, type(data))
+#
+        #data_list = data.tolist()
+        #index = list(set(data))
+        #array = [data_list.count(item) for item in index]
+#
+        raw_res = describe_ndframe(self._data)
+        return raw_res#pd.Series(array, index=index)
     
     
     def isna(self):
