@@ -239,7 +239,6 @@ class QuantityDtype(ExtensionDtype):
     
     
 from pandas.core.arrays.base import ExtensionOpsMixin
-# for ExtensionOpsMixin
 from pandas.api.types import is_list_like
 
 
@@ -256,7 +255,6 @@ class QuantityArray(ExtensionArray,
         that in an overwritten __settiem__ method.
         But, here we coerce the input values into Decimals.
         """
-
         # check if we have a list like [<Quantity:[1, 2, 3], m>]
         if (isinstance(values, list) or isinstance(values, np.ndarray)) and len(values) == 1 and isinstance(values[0], Quantity):
             values = values
@@ -273,56 +271,386 @@ class QuantityArray(ExtensionArray,
             dtype = QuantityDtype(values._SI_unitary_quantity)
         self._dtype = dtype
 
+        
+    # Shortcut to access the actual data
+    @property
+    def quantity(self):
+        return self._data
+    
+    
+    # Shortcut to access the dimension - should be equivalent to the QuantityDtype
+    @property
+    def dimension(self):
+        return self._data.dimension
+    
+        
+    ###################################
+    ########   ExtensionArray interface
+    ###################################
+    # Atributes 
+    #     dtype
+    #     nbytes
+    # Methods
+    #     _from_sequence
+    #     __getitem__
+    #     __len__
+    #     __eq__
+    #     isna
+    #     take
+    #     copy
+    #     _concat_same_type
+    #     TODO : _from_factorized
+    
+    @property
+    def dtype(self):
+        """An instance of 'QuantityDtype'."""
+        return self._dtype
+        
+        
+    @property
+    def nbytes(self):
+        """
+        The number of bytes needed to store this object in memory.
+        """        
+        # If this is expensive to compute, return an approximate lower bound
+        # on the number of bytes needed.
+        return self._itemsize * len(self)
+
+    
     @classmethod
     def _from_sequence(cls, scalars, dtype=None, copy=False):
-        """Construct a new ExtensionArray from a sequence of scalars.
-        Called by :
-            a = pd.Series([1, 2, 3], dtype='physipy[m]')
-            a = pd.Series([1, 2, 3]*m, dtype='physipy[m]')
-            
         """
-        values = asqarray(scalars)
-        #values = asqarray(scalars)
+        Construct a new QuantityArray from a sequence of scalars.
         
+        Parameters
+        ----------
+        scalars : Sequence
+            Each element will be an instance of the scalar type for this
+            array, ``cls.dtype.type`` or be converted into this type in this method.
+        dtype : dtype, optional
+            Construct for this particular dtype. This should be a Dtype
+            compatible with the ExtensionArray.
+        copy : bool, default False
+            If True, copy the underlying data.
+        Returns
+        -------
+        QuantityArray
+        
+        """
+        values = asqarray(scalars)        
         return cls(values, dtype=dtype)
 
-    #@classmethod
-    #def _from_factorized(cls, values, original):
-    #    """Reconstruct an ExtensionArray after factorization."""
-    #    return cls(values)
-
+    
     def __getitem__(self, item):
-        """Select a subset of self.
-        
-        Called by : print(df["quanti"].values)
         """
-        #return self._data[item]
+        Select a subset of self.
+        Parameters
+        ----------
+        item : int, slice, or ndarray
+            * int: The position in 'self' to get.
+            * slice: A slice object, where 'start', 'stop', and 'step' are
+              integers or None
+            * ndarray: A 1-d boolean NumPy ndarray the same length as 'self'
+        Returns
+        -------
+        item : scalar or ExtensionArray
+        Notes
+        -----
+        For scalar ``item``, return a scalar value suitable for the array's
+        type. This should be an instance of ``self.dtype.type``.
+        For slice ``key``, return an instance of ``ExtensionArray``, even
+        if the slice is length 0 or 1.
+        For a boolean mask, return an instance of ``ExtensionArray``, filtered
+        to the values where ``item`` is True.
+        """
+        # for scalar item
         if is_integer(item):
-            return self._data[item]# * self.units
+            # we use the __getitem__ of the underlying Quantity
+            # to return a QuantityType.type == Quantity instance scalar
+            return self._data[item] 
 
+        # seems to be a good practice
         item = check_array_indexer(self, item)
 
+        # return another QuantityArray with the subset
+        # again using __getitem__ of the Quantity
         return self.__class__(self._data[item], self.dtype)
-    
-    def __setitem__(self, key, value):
-        print("in setitem")
         
 
     def __len__(self) -> int:
-        """Length of this array."""
+        """
+        Length of this array
+        Returns
+        -------
+        length : int
+        """
         return len(self._data)
 
-    @property
-    def nbytes(self):
-        """The byte size of the data."""
-        return self._itemsize * len(self)
+    
+    def __eq__(self, other):
+        """
+        Return for `self == other` (element-wise equality).
+        """
+        # Implementer note: this should return a boolean numpy ndarray or
+        # a boolean ExtensionArray.
+        # When `other` is one of Series, Index, or DataFrame, this method should
+        # return NotImplemented (to ensure that those objects are responsible for
+        # first unpacking the arrays, and then dispatch the operation to the
+        # underlying arrays)
+        if instance(other, pd.DataFrame) or isintance(other, pd.Series) or isinstance(pd.Index):
+            raise NotImplemented
+        # rely on Quantity comparison that will return a boolean array
+        return self._data == other._data
+            
 
-    @property
-    def dtype(self):
-        """An instance of 'ExtensionDtype'."""
-        return self._dtype
+    def isna(self):
+        """
+        A 1-D array indicating if each value is missing.
+        Returns
+        -------
+        na_values : Union[np.ndarray, ExtensionArray]
+            In most cases, this should return a NumPy ndarray. For
+            exceptional cases like ``SparseArray``, where returning
+            an ndarray would be expensive, an ExtensionArray may be
+            returned.
+        Notes
+        -----
+        If returning an ExtensionArray, then
+        * ``na_values._is_boolean`` should be True
+        * `na_values` should implement :func:`ExtensionArray._reduce`
+        * ``na_values.any`` and ``na_values.all`` should be implemented
+        """
+        # Quantity implements this directly
+        return self._data.is_nan() 
+        
+
+    def take(self, indices, *,allow_fill=False, fill_value=None):
+            """
+            Take elements from an array.
+            Parameters
+            ----------
+            indices : sequence of int
+                Indices to be taken.
+            allow_fill : bool, default False
+                How to handle negative values in `indices`.
+                * False: negative values in `indices` indicate positional indices
+                  from the right (the default). This is similar to
+                  :func:`numpy.take`.
+                * True: negative values in `indices` indicate
+                  missing values. These values are set to `fill_value`. Any other
+                  other negative values raise a ``ValueError``.
+            fill_value : any, optional
+                Fill value to use for NA-indices when `allow_fill` is True.
+                This may be ``None``, in which case the default NA value for
+                the type, ``self.dtype.na_value``, is used.
+                For many ExtensionArrays, there will be two representations of
+                `fill_value`: a user-facing "boxed" scalar, and a low-level
+                physical NA value. `fill_value` should be the user-facing version,
+                and the implementation should handle translating that to the
+                physical version for processing the take if necessary.
+            Returns
+            -------
+            ExtensionArray
+            Raises
+            ------
+            IndexError
+                When the indices are out of bounds for the array.
+            ValueError
+                When `indices` contains negative values other than ``-1``
+                and `allow_fill` is True.
+            See Also
+            --------
+            numpy.take : Take elements from an array along an axis.
+            api.extensions.take : Take elements from an array.
+            Notes
+            -----
+            ExtensionArray.take is called by ``Series.__getitem__``, ``.loc``,
+            ``iloc``, when `indices` is a sequence of values. Additionally,
+            it's called by :meth:`Series.reindex`, or any other method
+            that causes realignment, with a `fill_value`.
+            Examples
+            --------
+            Here's an example implementation, which relies on casting the
+            extension array to object dtype. This uses the helper method
+            :func:`pandas.api.extensions.take`.
+            .. code-block:: python
+               def take(self, indices, allow_fill=False, fill_value=None):
+                   from pandas.core.algorithms import take
+                   # If the ExtensionArray is backed by an ndarray, then
+                   # just pass that here instead of coercing to object.
+                   data = self.astype(object)
+                   if allow_fill and fill_value is None:
+                       fill_value = self.dtype.na_value
+                   # fill value should always be translated from the scalar
+                   # type for the array, to the physical storage type for
+                   # the data, before passing to take.
+                   result = take(data, indices, fill_value=fill_value,
+                                 allow_fill=allow_fill)
+                   return self._from_sequence(result, dtype=self.dtype)
+            """
+            # Implementer note: The `fill_value` parameter should be a user-facing
+            # value, an instance of self.dtype.type. When passed `fill_value=None`,
+            # the default of `self.dtype.na_value` should be used.
+            # This may differ from the physical storage type your ExtensionArray
+            # uses. In this case, your implementation is responsible for casting
+            # the user-facing type to the storage type, before using
+            # pandas.api.extensions.take
+            # raise AbstractMethodError(self)
+        
+            # Base Pandas implementation example
+            # from pandas.core.algorithms import take
+            # # If the ExtensionArray is backed by an ndarray, then
+            # # just pass that here instead of coercing to object.
+            # data = self.astype(object)
+            # if allow_fill and fill_value is None:
+            #     fill_value = self.dtype.na_value
+            # # fill value should always be translated from the scalar
+            # # type for the array, to the physical storage type for
+            # # the data, before passing to take.
+            # result = take(data, indices, fill_value=fill_value,
+            #               allow_fill=allow_fill)
+            # return self._from_sequence(result, dtype=self.dtype)
+            #
+            # Pintpandas implementation
+            # data = self._data
+            # if allow_fill and fill_value is None:
+            #     fill_value = self.dtype.na_value
+            # if isinstance(fill_value, _Quantity):
+            #     fill_value = fill_value.to(self.units).magnitude
+            # result = take(data, indices, fill_value=fill_value, 
+            #               allow_fill=allow_fill)
+            # return PintArray(result, dtype=self.dtype)
+            
+            from pandas.core.algorithms import take
+            if allow_fill and fill_value is None:
+                fill_value = self.dtype.na_value
+            return QuantityArray(take(self._data,
+                                      indices, 
+                                      fill_value=fill_value,
+                                      allow_fill=allow_fill,
+                                     ),
+                                 self.dtype)
+            
+            
+    def copy(self):
+        """
+        Return a copy of the array.
+        Returns
+        -------
+        QuantityArray
+        """
+        return type(self)(self._data.copy(), self._dtype)
+
+    
+    @classmethod
+    def _concat_same_type(cls, to_concat):
+        """
+        Concatenate multiple array of this dtype.
+        Parameters
+        ----------
+        to_concat : sequence of this type
+        Returns
+        -------
+        ExtensionArray
+        """
+        # Implementer note: this method will only be called with a sequence of
+        # ExtensionArrays of this class and with the same dtype as self. This
+        # should allow "easy" concatenation (no upcasting needed), and result
+        # in a new ExtensionArray of the same dtype.
+        # Note: this strict behaviour is only guaranteed starting with pandas 1.1
+        return cls(np.concatenate([x._data for x in to_concat]), self.dtype)
+    
+    
+    ##############################
+    ##############################
+    
+    #########################
+    # Performance methods 
+    #########################
+    #  Some methods require casting the ExtensionArray to an ndarray of Python
+    # objects with ``self.astype(object)``, which may be expensive. When
+    # performance is a concern, we highly recommend overriding the following
+    # methods:
+    #    fillna
+    #    dropna
+    #    unique
+    #    factorize / _values_for_factorize
+    #    argsort / _values_for_argsort
+    #    searchsorted
 
 
+    def dropna(self):
+        """
+        Return QuantityArray without NA values.
+        Returns
+        -------
+        valid : QuantityArray
+        """
+        return self[~self.isna()]  
+    
+    
+    
+    ####################
+    # Array reduction
+    ####################
+    # One can implement methods to handle array reductions.
+    # * _reduce    
+    def _reduce(self, name, *, skipna=True, **kwargs):
+        """
+        Return a scalar result of performing the reduction operation.
+        Parameters
+        ----------
+        name : str
+            Name of the function, supported values are:
+            { any, all, min, max, sum, mean, median, prod,
+            std, var, sem, kurt, skew }.
+        skipna : bool, default True
+            If True, skip NaN values.
+        **kwargs
+            Additional keyword arguments passed to the reduction function.
+            Currently, `ddof` is the only supported kwarg.
+        Returns
+        -------
+        scalar
+        Raises
+        ------
+        TypeError : subclass does not define reductions
+        """
+        functions = {
+            "all": all,
+            "any": any,
+            "min": min,
+            "max": max,
+            "sum": sum,
+            "mean": np.mean,
+            "median": np.median,
+            "prod": np.prod,
+            "std": np.std, 
+            "var": np.var,
+            # sem
+            # kurt
+            # skew
+        }
+        if name not in functions:
+            raise TypeError(f"cannot perform {name} with type {self.dtype}")
+        
+        if skipna:
+            quantity = self.dropna()._data
+        else:
+            quantity = self._data    
+            
+        return functions[name](quantity)
+
+    
+    ################
+    ### REPR
+    ###############
+    # A default repr displaying the type, (truncated) data, length,
+    # and dtype is provided. It can be customized or replaced by
+    # by overriding:
+    #    __repr__ : A default repr for the ExtensionArray.
+    #    _formatter : Print scalars inside a Series or DataFrame.
+    
     def _formatter(self, boxed=False):
         """Formatting function for scalar values.
         This is used in the default '__repr__'. The returned formatting
@@ -344,8 +672,6 @@ class QuantityArray(ExtensionArray,
             when ``boxed=False`` and :func:`str` is used when
             ``boxed=True``.
         """
-
-
         def formatting_function(quantity):
             return "{}".format(
                 quantity
@@ -353,6 +679,11 @@ class QuantityArray(ExtensionArray,
 
         return formatting_function
     
+   
+    
+    ################### 
+    # Stats helper
+    ###############
     def value_counts(self, dropna=True):
         """
         From https://github.com/hgrecco/pint-pandas/blob/04d4ed7befb42d3c830885d7f39997eac5392af3/pint_pandas/pint_array.py
@@ -389,54 +720,10 @@ class QuantityArray(ExtensionArray,
         return raw_res#pd.Series(array, index=index)
     
     
-    def isna(self):
-        """A 1-D array indicating if each value is missing."""
-        #return np.array([x.is_nan() for x in self._data], dtype=bool)
-        return self._data.is_nan() # Quantity implements this directly
-        
-    def take(self, indexer, allow_fill=False, fill_value=None):
-        """Take elements from an array.
-        Relies on the take method defined in pandas:
-        https://github.com/pandas-dev/pandas/blob/e246c3b05924ac1fe083565a765ce847fcad3d91/pandas/core/algorithms.py#L1483
-        """
-        from pandas.api.extensions import take
 
-        data = self._data
-        if allow_fill and fill_value is None:
-            fill_value = self.dtype.na_value
-
-        result = take(
-            data, indexer, fill_value=fill_value, allow_fill=allow_fill)
-        return self._from_sequence(result)
-
-    def copy(self):
-        """Return a copy of the array.
-        
-        Used on :
-        res = df["a"] + df["b"]
-        df["c"] = res
-        """
-        return type(self)(self._data.copy(), self._dtype)
-
-    @classmethod
-    def _concat_same_type(cls, to_concat):
-        """Concatenate multiple arrays."""
-        return cls(np.concatenate([x._data for x in to_concat]))
-    
-    
-    
-    
     ###################################
     ##### ExtensionOpsMixin
     ###################################
-    @property
-    def quantity(self):
-        return self._data
-    
-    @property
-    def dimension(self):
-        return self._data.dimension
-    
     @classmethod
     def _create_method(cls, op, coerce_to_dtype=True):
         """
@@ -558,14 +845,13 @@ class QuantityArray(ExtensionArray,
         array : ndarray
             NumPy ndarray with 'dtype' for its dtype.
         """
-        #if isinstance(dtype, str) and (
-        #    dtype.startswith("physipy[")):
-        #    dtype = QuantityDtype(dtype)
+        if isinstance(dtype, str) and (dtype.startswith("physipy[")):
+            dtype = QuantityDtype(dtype)
         if isinstance(dtype, QuantityDtype):
             if dtype == self._dtype and not copy:
                 return self
             else:
-                return QuantityArray(self.quantity.value, dtype)
+                return self.copy()
         elif isinstance(dtype, Quantity):
             return QuantityArray(self.quantity.value, QuantityDtype(dtype))
         #return self.__array__(dtype, copy)
