@@ -567,7 +567,7 @@ class QuantityArray(ExtensionArray,
     #########################
     # Performance methods 
     #########################
-    #  Some methods require casting the ExtensionArray to an ndarray of Python
+    # Some methods require casting the ExtensionArray to an ndarray of Python
     # objects with ``self.astype(object)``, which may be expensive. When
     # performance is a concern, we highly recommend overriding the following
     # methods:
@@ -588,7 +588,70 @@ class QuantityArray(ExtensionArray,
         """
         return self[~self.isna()]  
     
+    def unique(self):
+        """
+        Compute the QuantityArray of unique values.
+        Returns
+        -------
+        uniques : QuantityArray
+        """
+        from pandas.core.algorithms import unique
+        uniques = unique(self.quantity.value)
+        return QuantityArray(Quantity(uniques, self.quantity.dimension), self.dtype)
     
+    def searchsorted(self, value, side="left", sorter=None):
+        """
+        Find indices where elements should be inserted to maintain order.
+        Find the indices into a sorted array `self` (a) such that, if the
+        corresponding elements in `value` were inserted before the indices,
+        the order of `self` would be preserved.
+        Assuming that `self` is sorted:
+        ======  ================================
+        `side`  returned index `i` satisfies
+        ======  ================================
+        left    ``self[i-1] < value <= self[i]``
+        right   ``self[i-1] <= value < self[i]``
+        ======  ================================
+        Parameters
+        ----------
+        value : array-like
+            Values to insert into `self`.
+        side : {'left', 'right'}, optional
+            If 'left', the index of the first suitable location found is given.
+            If 'right', return the last such index.  If there is no suitable
+            index, return either 0 or N (where N is the length of `self`).
+        sorter : 1-D array-like, optional
+            Optional array of integer indices that sort array a into ascending
+            order. They are typically the result of argsort.
+        Returns
+        -------
+        array of ints
+            Array of insertion points with the same shape as `value`.
+        See Also
+        --------
+        numpy.searchsorted : Similar method from NumPy.
+        """
+        # Note: the base tests provided by pandas only test the basics.
+        # We do not test
+        # 1. Values outside the range of the `data_for_sorting` fixture
+        # 2. Values between the values in the `data_for_sorting` fixture
+        # 3. Missing values.
+        return np.searchsorted(self.quantity.value, value, side=side, sorter=sorter)
+    
+    def _values_for_argsort(self):
+        """
+        Return values for sorting.
+        Returns
+        -------
+        ndarray
+            The transformed values should maintain the ordering between values
+            within the array.
+        See Also
+        --------
+        ExtensionArray.argsort : Return the indices that would sort this array.
+        """
+        # Note: this is used in `ExtensionArray.argsort`.
+        return np.array(self.quantity.value)
     
     ####################
     # Array reduction
@@ -856,6 +919,34 @@ class QuantityArray(ExtensionArray,
             return QuantityArray(self.quantity.value, QuantityDtype(dtype))
         #return self.__array__(dtype, copy)
         return Quantity(self.quantity.value.astype(dtype), self.quantity.dimension)
+
+    
+    def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
+        """
+        Series implements __array_ufunc__. As part of the implementation, pandas unboxes the ExtensionArray 
+        from the Series, applies the ufunc, and re-boxes it if necessary.
+
+        If applicable, we highly recommend that you implement __array_ufunc__ in your extension array to avoid
+        coercion to an ndarray. See the NumPy documentation for an example.
+        
+        As part of your implementation, we require that you defer to pandas when a pandas container (Series, DataFrame, Index) 
+        is detected in inputs. If any of those is present, you should return NotImplemented. pandas will take care of unboxing
+        the array from the container and re-calling the ufunc with the unwrapped input.
+        """
+        if any(map(lambda x:isinstance(x, pd.DataFrame) or isinstance(x, pd.Series), inputs)):
+            raise NotImplemented
+        if not method == "__call__":
+            raise NotImplementedError(f"array ufunc {ufunc} with method {method} not implemented")
+
+        # first compute the raw quantity result
+        inputs = map(lambda x:x.quantity, inputs)
+        qres = ufunc.__call__(*inputs)
+
+        # then wrap it in a QuantityArray, with the corresponding dtype
+        # good thing is that the dimensions work is handled in Quantity
+        return QuantityArray(qres, QuantityDtype(qres))
+        
+        
     
     def __array__(self, dtype=None, copy=False):
         #if dtype is None or is_object_dtype(dtype):
