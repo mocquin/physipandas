@@ -25,23 +25,28 @@ class QuantityDtype(ExtensionDtype):
     This basically wraps a dimension using a unitary quantity.
 
     For guidelines on how to write this class : 
-    https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.api.extensions.ExtensionDtype.html
+    https://pandas.pydata.org/pandas-docs/stable/reference/api/
+    pandas.api.extensions.ExtensionDtype.html
     
-    We subclass from https://github.com/pandas-dev/pandas/blob/f00ed8f47020034e752baf0250483053340971b0/pandas/core/dtypes/base.py#L35
+    We subclass from https://github.com/pandas-dev/pandas/blob/
+    f00ed8f47020034e752baf0250483053340971b0/pandas/core/dtypes/base.py#L35
     
     The interface includes the following abstract methods that must be implemented by subclasses:
      - [X] : type : The scalar type for the array, ut’s expected ExtensionArray[item] returns an
      instance of ExtensionDtype.type for scalar item : hence we use Quantity
-     - [X] : name : property that returns the string f"physipy[{self.unit.dimension.str_SI_unit()}]", a string identifying the data type.
+     - [X] : name : property that returns the string 
+     f"physipy[{self.unit.dimension.str_SI_unit()}]", a string identifying the data type.
      Will be used for display in, e.g. Series.dtype
      - [X] : construct_array_type : return QuantityArray
 
 
     The following attributes and methods influence the behavior of the dtype in pandas operations
-     - [X] : _is_numeric : returns True for now, but should it since we are not a plain number ?. If not over
-     riden , returns False by inheritance of ExtensionDtype
+     - [X] : _is_numeric : returns True for now, but should it since we a
+     re not a plain number ?. If not overriden , returns False by inheritance of ExtensionDtype
      - [X] : _is_boolean : returns False by inheritance of ExtensionDtype
-     - [X] : _get_common_dtype : for now inherite from ExtensionDtype at https://github.com/pandas-dev/pandas/blob/f00ed8f47020034e752baf0250483053340971b0/pandas/core/dtypes/base.py#L335
+     - [X] : _get_common_dtype : for now inherite from ExtensionDtype at
+     https://github.com/pandas-dev/pandas/blob/f00ed8f47020034e752baf0250483053340971b0/
+     pandas/core/dtypes/base.py#L335
 
     The na_value class attribute can be used to set the default NA value for this type.
     numpy.nan is used by default.
@@ -55,30 +60,30 @@ class QuantityDtype(ExtensionDtype):
     Ideally, the attributes in _metadata will match the parameters to your ExtensionDtype.__init__ 
     (if any). If any of the attributes in _metadata don’t implement the standard __eq__ or __hash__, 
     the default implementations here will not work.
-    - [X] : _metadata : QuantityDtype are parametrized by a physical quantity, so we rely on the hash of the
-    quantity to hash the Dtype.
+    - [X] : _metadata : QuantityDtype are parametrized by a physical quantity, so 
+    we rely on the hash of the quantity to hash the Dtype.
     
     
     Methods
      - [X] : construct_array_type() : Return the array type associated with this dtype : QuantityArray
-     - [X] : construct_from_string(string) : Construct this type from a string. See [the doc of ExtensionDtype.construct_from_string]( https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.api.extensions.ExtensionDtype.construct_from_string.html#pandas.api.extensions.ExtensionDtype.construct_from_string.)
-    ```
-    Construct this type from a string.
-    
+     - [X] : construct_from_string(string) : Construct this type from a string. See 
+     [the doc of ExtensionDtype.construct_from_string]
+     (https://pandas.pydata.org/pandas-docs/stable/reference
+     /api/pandas.api.extensions.ExtensionDtype.construct_from_string.
+     html#pandas.api.extensions.ExtensionDtype.construct_from_string.)
     This is useful mainly for data types that accept parameters. For example, a period dtype 
     accepts a frequency parameter that can be set as period[H] (where H means hourly frequency).
-    ```
     For this we use a string parsing of the style `physipy[m]` for meter.
      - [X] : is_dtype(dtype) : Check if we match ‘dtype’. For now we use the default behaviour 
-     given [here](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.api.extensions.ExtensionDtype.is_dtype.html#pandas.api.extensions.ExtensionDtype.is_dtype).
-    
+     given [here](https://pandas.pydata.org/pandas-docs/stable/reference
+     /api/pandas.api.extensions.ExtensionDtype.is_dtype.html#pandas.api.extensions.ExtensionDtype.is_dtype).
     
      - kind [X] : use the default from inheritance : This should match the NumPy dtype used when the array is
         converted to an ndarray, which is probably 'O' for object if
         the extension type cannot be represented as a built-in NumPy
-        type. See : https://github.com/pandas-dev/pandas/blob/f00ed8f47020034e752baf0250483053340971b0/pandas/core/dtypes/base.py#L163
+        type. See : https://github.com/pandas-dev/pandas/blob/
+        f00ed8f47020034e752baf0250483053340971b0/pandas/core/dtypes/base.py#L163
 
-    
     """
     
     # The scalar type for the array, it’s expected ExtensionArray[item] returns an
@@ -133,6 +138,7 @@ class QuantityDtype(ExtensionDtype):
         else:
             raise ValueError
 
+
     # property that returns a string identifying the data type.
     # Will be used for display in, e.g. Series.dtype
     @property
@@ -147,9 +153,11 @@ class QuantityDtype(ExtensionDtype):
         """
         return f"physipy[{self.unit.dimension.str_SI_unit()}]"
     
+
     @property
     def dimension(self):
         return self.unit.dimension
+    
     
     def __repr__(self):
         """
@@ -159,7 +167,9 @@ class QuantityDtype(ExtensionDtype):
         """
         return self.name
     
+    
     ####################
+    
     
     ###### Construction from string, to allow both series.astype("quantity")
     #### and pretty printing
@@ -213,6 +223,7 @@ class QuantityDtype(ExtensionDtype):
                 pass
         raise TypeError(f"Cannot construct a 'QuantityType' from '{string}'")
 
+        
     @classmethod
     def construct_from_quantity_string(cls, string):
         """
@@ -242,11 +253,12 @@ from pandas.core.arrays.base import ExtensionOpsMixin
 from pandas.api.types import is_list_like
 
 
-class QuantityArray(ExtensionArray,
-                    # for operations between series for ex
-                    # see https://github.com/pandas-dev/pandas/blob/21d61451ca363bd4c67dbf284b29daacc30302b1/pandas/core/arrays/base.py#L1330
-                    # must define _create_arithmetic_method(cls, op) for ex
-                   ExtensionOpsMixin):
+
+# ExtensionOpsMixin : for operations between series for ex
+# see https://github.com/pandas-dev/pandas/blob/
+# 21d61451ca363bd4c67dbf284b29daacc30302b1/pandas/core/arrays/base.py#L1330
+# must define _create_arithmetic_method(cls, op) for ex
+class QuantityArray(ExtensionArray, ExtensionOpsMixin):
     """Abstract base class for custom 1-D array types."""
 
     def __init__(self, values, dtype=None, copy=False):
