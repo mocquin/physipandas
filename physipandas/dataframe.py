@@ -30,28 +30,34 @@ class PhysipyDataFrameAccessor(object):
 
     def dequantify(self):
         def formatter_func(units):
-            #formatter = "{:" + units._REGISTRY.default_format + "}"
-            #formatter = "{:"+str(units.str_SI_unit())+"}"
+                    #formatter = "{:" + units._REGISTRY.default_format + "}"
+                    #formatter = "{:"+str(units.str_SI_unit())+"}"
             formatter = "{:}"
-            return formatter.format(units)
-
+            return formatter.format(units.str_SI_unit())
         df = self._obj
-
         df_columns = df.columns.to_frame()
-        df_columns["units"] = [
-            formatter_func(df[col].values.dimension) for col in df.columns
-        ]
+        units = []
+        for col in df.columns:
+            if isinstance(df[col].dtype, QuantityDtype):
+                units.append(formatter_func(df[col].values.dimension))
+            else:
+                units.append("-")
+        df_columns["units"] = units
         from collections import OrderedDict
-
+        
         data_for_df = OrderedDict()
         for i, col in enumerate(df.columns):
-            data_for_df[tuple(df_columns.iloc[i])] = df[col].values._data
-        df_new = DataFrame(data_for_df, columns=data_for_df.keys(),
-                          index=range(len(data_for_df)))
+            if isinstance(df[col].dtype, QuantityDtype):
+                data_for_df[tuple(df_columns.iloc[i])] = QuantityArray(df[col].values._data)
+            else:
+                data_for_df[tuple(df_columns.iloc[i])] = df[col]
+        df_new = DataFrame(
+            data_for_df, 
+            columns=data_for_df.keys(),
+        )
 
         df_new.columns.names = df.columns.names + ["unit"]
         df_new.index = df.index
-
         return df_new
 
     def to_base_units(self):
