@@ -28,6 +28,10 @@ class PhysipyDataFrameAccessor(object):
 
         return df_new
 
+    def show(self):
+        """Alias for df.physipy.dequantify()"""
+        return self.dequantify()
+    
     def dequantify(self):
         def formatter_func(units):
                     #formatter = "{:" + units._REGISTRY.default_format + "}"
