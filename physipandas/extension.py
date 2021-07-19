@@ -570,7 +570,7 @@ class QuantityArray(ExtensionArray, ExtensionOpsMixin):
         # should allow "easy" concatenation (no upcasting needed), and result
         # in a new ExtensionArray of the same dtype.
         # Note: this strict behaviour is only guaranteed starting with pandas 1.1
-        return cls(np.concatenate([x._data for x in to_concat]), self.dtype)
+        return cls(np.concatenate([x._data for x in to_concat]), cls.dtype)
     
     
     ##############################
