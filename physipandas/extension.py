@@ -935,28 +935,35 @@ class QuantityArray(ExtensionArray, ExtensionOpsMixin):
     
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
         """
-        Series implements __array_ufunc__. As part of the implementation, pandas unboxes the ExtensionArray 
+        Series implements __array_ufunc__. As part of the implementation, pandas unboxes the ExtensionArray
         from the Series, applies the ufunc, and re-boxes it if necessary.
-
+ 
         If applicable, we highly recommend that you implement __array_ufunc__ in your extension array to avoid
         coercion to an ndarray. See the NumPy documentation for an example.
-        
-        As part of your implementation, we require that you defer to pandas when a pandas container (Series, DataFrame, Index) 
+       
+        As part of your implementation, we require that you defer to pandas when a pandas container (Series, DataFrame, Index)
         is detected in inputs. If any of those is present, you should return NotImplemented. pandas will take care of unboxing
         the array from the container and re-calling the ufunc with the unwrapped input.
         """
         if any(map(lambda x:isinstance(x, pd.DataFrame) or isinstance(x, pd.Series), inputs)):
             raise NotImplemented
-        if not method == "__call__":
+        if not (method == "__call__" or method =="reduce"):
             raise NotImplementedError(f"array ufunc {ufunc} with method {method} not implemented")
-
+ 
         # first compute the raw quantity result
         inputs = map(lambda x:x.quantity, inputs)
-        qres = ufunc.__call__(*inputs)
-
+        if method == "__call__":
+            qres = ufunc.__call__(*inputs)
+        elif method == "reduce":
+            qres = ufunc.reduce(*inputs, **kwargs)
+ 
         # then wrap it in a QuantityArray, with the corresponding dtype
         # good thing is that the dimensions work is handled in Quantity
-        return QuantityArray(qres, QuantityDtype(qres))
+        try:
+            n = len(qres)
+            return QuantityArray(qres, QuantityDtype(qres))
+        except:
+            return qres
         
         
     
