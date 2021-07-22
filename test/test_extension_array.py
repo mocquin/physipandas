@@ -59,7 +59,7 @@ class TestClassQuantityArray(unittest.TestCase):
         self.assertEqual(exp, res)
     def test_autocorr(self):
         # autocorrelation
-        res = sq.autocorr()
+        res = self.sq.autocorr()
         exp = self.s.autocorr()
         self.assertEqual(exp, res)
     def test_dot(self):
@@ -367,8 +367,8 @@ class TestClassQuantityArray(unittest.TestCase):
         res = self.sq.xs(3)
         self.assertEqual(exp, res)
     def test_where(self):
-        res = self.sq.where(sq>4*m)
-        exp = self.s.where(s>4)*m
+        res = self.sq.where(self.sq>4*m)
+        exp = self.s.where(self.s>4)*m
         self.assertEqual(exp, res)
     def test_abs(self):
         # asbolute value
