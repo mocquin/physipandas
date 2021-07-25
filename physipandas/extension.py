@@ -110,7 +110,15 @@ class QuantityDtype(ExtensionDtype):
     # exist (see .take)
     # The na_value class attribute can be used to set the default NA value for this type.
     # numpy.nan is used by default : we overide this with na_value = Quantity(np.nan, Dimension(None))
-    na_value = Quantity(np.nan, Dimension(None))
+    # could be na_value = Quantity(np.nan, Dimension(None)) but this then fails for concatenation
+    # with object.
+    @property
+    def na_value(self):
+        """
+        this will be used by QuantityArray when accessing indexes that do not
+        exist (see .take), as well as shifting to create new empty element.
+        """
+        return Quantity(np.nan, self.dimension)
 
     
     #  Return the array type associated with this dtype : QuantityArray
