@@ -395,8 +395,17 @@ class QuantityArray(ExtensionArray, ExtensionOpsMixin):
         # return another QuantityArray with the subset
         # again using __getitem__ of the Quantity
         return self.__class__(self._data[item], self.dtype)
-        
 
+    
+    def round(self, decimals=0, *args, **kwargs):
+        """
+        Used by round.
+        """
+        return type(self)(np.around(self.quantity.value, 
+                                    decimals)*self.quantity._SI_unitary_quantity, 
+                          self.dtype)
+        
+        
     def __len__(self) -> int:
         """
         Length of this array
