@@ -719,15 +719,15 @@ class QuantityArray(ExtensionArray, ExtensionOpsMixin):
             "any": any,
             "min": min,
             "max": max,
-            "sum": sum,
+            "sum": np.sum,
             "mean": np.mean,
             "median": np.median,
             "prod": np.prod,
-            "std": np.std, 
-            "var": np.var,
-            # sem
-            # kurt
-            # skew
+            "std": lambda x:np.std(x, ddof=1),
+            "var": lambda x:np.var(x, ddof=1),
+            "sem": lambda x:np.std(x, ddof=0),
+            "kurt": lambda x:scipy.stats.kurtosis(x, bias=False),
+            "skew": lambda x:scipy.stats.skew(x, bias=False),
         }
         if name not in functions:
             raise TypeError(f"cannot perform {name} with type {self.dtype}")
