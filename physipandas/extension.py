@@ -671,7 +671,7 @@ class QuantityArray(ExtensionArray, ExtensionOpsMixin):
         # 1. Values outside the range of the `data_for_sorting` fixture
         # 2. Values between the values in the `data_for_sorting` fixture
         # 3. Missing values.
-        return np.searchsorted(self.quantity.value, value, side=side, sorter=sorter)
+        return np.searchsorted(self.quantity, value, side=side, sorter=sorter)
     
     def _values_for_argsort(self):
         """
