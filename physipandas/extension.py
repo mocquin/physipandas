@@ -397,6 +397,12 @@ class QuantityArray(ExtensionArray, ExtensionOpsMixin):
         return self.__class__(self._data[item], self.dtype)
 
     
+    #def __setitem__(self, key, value):
+    #    """
+    #    Necessary for some funtions.
+    #    """
+    #    self._data.value[key] = value
+    
     def round(self, decimals=0, *args, **kwargs):
         """
         Used by round.
