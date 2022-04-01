@@ -34,7 +34,7 @@ class QuantityDtype(ExtensionDtype):
     f00ed8f47020034e752baf0250483053340971b0/pandas/core/dtypes/base.py#L35
     
     The interface includes the following abstract methods that must be implemented by subclasses:
-     - [X] : type : The scalar type for the array, ut’s expected ExtensionArray[item] returns an
+     - [X] : type : The scalar type for the array, it’s expected ExtensionArray[item] returns an
      instance of ExtensionDtype.type for scalar item : hence we use Quantity
      - [X] : name : property that returns the string 
      f"physipy[{self.unit.dimension.str_SI_unit()}]", a string identifying the data type.
@@ -90,6 +90,7 @@ class QuantityDtype(ExtensionDtype):
     
     # The scalar type for the array, it’s expected ExtensionArray[item] returns an
     # instance of ExtensionDtype.type for scalar item : hence we use Quantity
+    # Example : QuantityArray(..)[3] -> Quantity
     type = Quantity
     
     
@@ -99,19 +100,23 @@ class QuantityDtype(ExtensionDtype):
     # If you have a parametrized dtype you should set the ``_metadata`` class property.
     # Ideally, the attributes in _metadata will match the parameters to your ExtensionDtype.__init__ 
     # (if any). If any of the attributes in _metadata don’t implement the standard __eq__ or __hash__, 
-    # the default implementations here will not work. QuantityDtype are parametrized by a
-    # physical quantity, so we rely on the hash of the quantity to hash the Dtype.
+    # the default implementations here will not work. 
+    # QuantityDtype are parametrized by a physical quantity, so we rely on the hash of 
+    # the quantity to hash the Dtype.
     _metadata = ("unit",)
     
     
     # for construction from string
+    # Example : "physipy[mm]" or "physipy[]"
     _match = re.compile(r"physipy\[(?P<unit>.+)\]")
     
     
     # this will be used by QuantityArray when accessing indexes that do not
     # exist (see .take)
     # The na_value class attribute can be used to set the default NA value for this type.
-    # numpy.nan is used by default : we overide this with na_value = Quantity(np.nan, Dimension(None))
+    # numpy.nan is used by default : 
+    # we overide this with na_value = Quantity(np.nan, self.dimension) so that the dimension maps
+    # the rest of the array.
     # could be na_value = Quantity(np.nan, Dimension(None)) but this then fails for concatenation
     # with object.
     @property
@@ -119,6 +124,8 @@ class QuantityDtype(ExtensionDtype):
         """
         this will be used by QuantityArray when accessing indexes that do not
         exist (see .take), as well as shifting to create new empty element.
+        Note that the na_value depends on the dimension of the dtype, for eg:
+        QuantityDtype("physipy[m]").na_value == Quantity(np.nan, Dimension("L"))
         """
         return Quantity(np.nan, self.dimension)
 
@@ -133,13 +140,22 @@ class QuantityDtype(ExtensionDtype):
     #############################
     #######  To print the unit under the values when repr-ed
     def __new__(cls, unit=None):
+        """
+        Creation is allowed for : 
+          - already QuantityDtype isntance
+          - a string like physipy[m]
+          - None
+          - a quantity
+        """
         if isinstance(unit, QuantityDtype):
+            # unit is already a QuantityDtype
             return unit
         elif isinstance(unit, str):
             unit = cls._parse_dtype_strict(unit)
         elif unit is None:
-            unit = quantify(1)
-            
+            unit = Quantity(1, Dimension(None))
+        
+        # Now that we have a quantity, we create the Dtype
         if isinstance(unit, Quantity):
             #qdtype_unit = QuantityDtype(unit)
             u = object.__new__(cls)
@@ -154,14 +170,14 @@ class QuantityDtype(ExtensionDtype):
     @property
     def name(self):
         """
-        What to print below 
+        What to print below the content of the following calls : 
         
             df["quanti"].values
             df["quanti"].dtype
             df["quanti"]
         
         """
-        return f"physipy[{self.unit.dimension.str_SI_unit()}]"
+        return f"physipy[{str(self.unit)}]"#self.unit.dimension.str_SI_unit()}]"
     
 
     @property
@@ -194,15 +210,18 @@ class QuantityDtype(ExtensionDtype):
         if isinstance(string_unit, str):
             if string_unit.startswith("physipy["):# or units.startswith("Pint["):
                 if not string_unit[-1] == "]":
-                    raise ValueError("could not construct QuantityDtype")
+                    raise ValueError(f"could not construct QuantityDtype with {string_unit}.")
                 m = cls._match.search(string_unit)
                 if m is not None:
                     string_unit = m.group("unit")
-                    actual_unit_quantity = eval_dict_units[string_unit]
-            if actual_unit_quantity is not None:
-                return actual_unit_quantity
+                    actual_unit_quantity = eval(string_unit, eval_dict_units)
+                    if actual_unit_quantity is not None:
+                        return actual_unit_quantity
+                # in case "physipy[]", return dimless
+                else:
+                    return Quantity(1, Dimension(None))
 
-        raise ValueError("could not construct QuantityDtype")
+        raise ValueError(f"could not construct QuantityDtype with {string_unit}.")
 
         
         
@@ -214,8 +233,8 @@ class QuantityDtype(ExtensionDtype):
         """
         Strict construction from a string, raise a TypeError if not
         possible
+        This is called by def __new__(cls, unit=None): when unit is a string.
         """
-        eval_dict_units = physipy.units
         
         if not isinstance(string, str):
             raise TypeError(
@@ -232,23 +251,6 @@ class QuantityDtype(ExtensionDtype):
             except ValueError:
                 pass
         raise TypeError(f"Cannot construct a 'QuantityType' from '{string}'")
-
-        
-    @classmethod
-    def construct_from_quantity_string(cls, string):
-        """
-        For use in QuantityArray
-         
-        Strict construction from a string, raise a TypeError if not
-        possible
-        """
-        if not isinstance(string, str):
-            raise TypeError(
-                f"'construct_from_quantity_string' expects a string, got {type(string)}"
-            )
-
-        quantity = cls.ureg.Quantity(string)
-        return cls(unit=quantity.unit)
     
     
     # returns True for now, but should it since we are not a plain number ?. If not over
@@ -258,6 +260,7 @@ class QuantityDtype(ExtensionDtype):
         return True
     
     
+
     
 from pandas.core.arrays.base import ExtensionOpsMixin
 from pandas.api.types import is_list_like
