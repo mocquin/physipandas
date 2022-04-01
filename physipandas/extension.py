@@ -433,7 +433,10 @@ class QuantityArray(ExtensionArray, ExtensionOpsMixin):
         """
         Necessary for some funtions.
         """
-        self._data.value[key] = value
+        value = quantify(value)
+        if value.dimension != self.dimension:
+            raise DimensionError(value.dimension, self.dimension)
+        self._data.value[key] = value.value
     
     def round(self, decimals=0, *args, **kwargs):
         """
@@ -465,7 +468,7 @@ class QuantityArray(ExtensionArray, ExtensionOpsMixin):
         # first unpacking the arrays, and then dispatch the operation to the
         # underlying arrays)
         if instance(other, pd.DataFrame) or isintance(other, pd.Series) or isinstance(pd.Index):
-            raise NotImplemented
+            return NotImplemented
         # rely on Quantity comparison that will return a boolean array
         return self._data == other._data
             
@@ -591,12 +594,14 @@ class QuantityArray(ExtensionArray, ExtensionOpsMixin):
             from pandas.core.algorithms import take
             if allow_fill and fill_value is None:
                 fill_value = self.dtype.na_value
-            return QuantityArray(take(self._data,
+            # raw numpy array
+            np_res = take(self._data,
                                       indices, 
                                       fill_value=fill_value,
                                       allow_fill=allow_fill,
-                                     ),
-                                 self.dtype)
+                                     )
+            # add back unit and cast into QuantityArray
+            return QuantityArray(np_res*self.dtype.unit)
             
             
     def copy(self):
@@ -625,7 +630,11 @@ class QuantityArray(ExtensionArray, ExtensionOpsMixin):
         # should allow "easy" concatenation (no upcasting needed), and result
         # in a new ExtensionArray of the same dtype.
         # Note: this strict behaviour is only guaranteed starting with pandas 1.1
-        return cls(np.concatenate([x._data for x in to_concat]), cls.dtype)
+        
+        # same dimension is ensured by pandas by checkng same Dtype before using this
+        # We rely on np.concatenate implemtentation of Quantity, such that the result 
+        # already hold the unit
+        return cls(np.concatenate([x._data for x in to_concat]))
     
     
     ##############################
@@ -664,7 +673,7 @@ class QuantityArray(ExtensionArray, ExtensionOpsMixin):
         """
         from pandas.core.algorithms import unique
         uniques = unique(self.quantity.value)
-        return QuantityArray(Quantity(uniques, self.quantity.dimension), self.dtype)
+        return QuantityArray(Quantity(uniques, self.quantity.dimension))#), self.dtype)
     
     def searchsorted(self, value, side="left", sorter=None):
         """
@@ -820,40 +829,40 @@ class QuantityArray(ExtensionArray, ExtensionOpsMixin):
     ################### 
     # Stats helper
     ###############
-    def value_counts(self, dropna=True):
-        """
-        From https://github.com/hgrecco/pint-pandas/blob/04d4ed7befb42d3c830885d7f39997eac5392af3/pint_pandas/pint_array.py
-        """
-        #"""
-        #Returns a Series containing counts of each category.
-        #Every category will have an entry, even those with a count of 0.
-        #Parameters
-        #----------
-        #dropna : boolean, default True
-        #    Don't include counts of NaN.
-        #Returns
-        #-------
-        #counts : Series
-        #See Also
-        #--------
-        #Series.value_counts
-        #"""
+    #def value_counts(self, dropna=True):
+    #    """
+    #    From https://github.com/hgrecco/pint-pandas/blob/04d4ed7befb42d3c830885d7f39997eac5392af3/pint_pandas/pint_array.py
+    #    """
+    #    #"""
+    #    #Returns a Series containing counts of each category.
+    #    #Every category will have an entry, even those with a count of 0.
+    #    #Parameters
+    #    #----------
+    #    #dropna : boolean, default True
+    #    #    Don't include counts of NaN.
+    #    #Returns
+    #    #-------
+    #    #counts : Series
+    #    #See Also
+    #    #--------
+    #    #Series.value_counts
+    #    #"""
 
-        from pandas import Series
-        from pandas.core.describe import describe_ndframe
+    #    from pandas import Series
+    #    from pandas.core.describe import describe_ndframe
 
-        # compute counts on the data with no nans
-        #data = self._data
-        #if dropna:
-        #    data = data[~np.isnan(data)]
-        #print(data, type(data))
+    #    # compute counts on the data with no nans
+    #    #data = self._data
+    #    #if dropna:
+    #    #    data = data[~np.isnan(data)]
+    #    #print(data, type(data))
 #
-        #data_list = data.tolist()
-        #index = list(set(data))
-        #array = [data_list.count(item) for item in index]
+    #    #data_list = data.tolist()
+    #    #index = list(set(data))
+    #    #array = [data_list.count(item) for item in index]
 #
-        raw_res = describe_ndframe(self._data)
-        return raw_res#pd.Series(array, index=index)
+    #    raw_res = describe_ndframe(self._data)
+    #    return raw_res#pd.Series(array, index=index)
     
     
 
@@ -1022,7 +1031,7 @@ class QuantityArray(ExtensionArray, ExtensionOpsMixin):
         # good thing is that the dimensions work is handled in Quantity
         try:
             n = len(qres)
-            return QuantityArray(qres, QuantityDtype(qres))
+            return QuantityArray(qres)
         except:
             return qres
         
