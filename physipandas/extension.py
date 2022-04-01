@@ -30,8 +30,7 @@ class QuantityDtype(ExtensionDtype):
     https://pandas.pydata.org/pandas-docs/stable/reference/api/
     pandas.api.extensions.ExtensionDtype.html
     
-    We subclass from https://github.com/pandas-dev/pandas/blob/
-    f00ed8f47020034e752baf0250483053340971b0/pandas/core/dtypes/base.py#L35
+    We subclass from https://github.com/pandas-dev/pandas/blob/06d230151e6f18fdb8139d09abf539867a8cd481/pandas/core/dtypes/base.py#L39
     
     The interface includes the following abstract methods that must be implemented by subclasses:
      - [X] : type : The scalar type for the array, it’s expected ExtensionArray[item] returns an
@@ -147,10 +146,10 @@ class QuantityDtype(ExtensionDtype):
           - None
           - a quantity
         """
-        if isinstance(unit, QuantityDtype):
+        #if isinstance(unit, QuantityDtype):
             # unit is already a QuantityDtype
-            return unit
-        elif isinstance(unit, str):
+        #    return unit
+        if isinstance(unit, str):
             unit = cls._parse_dtype_strict(unit)
         elif unit is None:
             unit = Quantity(1, Dimension(None))

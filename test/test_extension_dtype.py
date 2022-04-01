@@ -23,6 +23,21 @@ class TestClassQuantityDtype(unittest.TestCase):
         #sq = pd.Series(qarr, dtype='physipy[m]')
         #cls.sq = sq
 
+    ## Inherited attributes/methods
+    def test_kind(self):
+        # see https://github.com/pandas-dev/pandas/blob/06d230151e6f18fdb8139d09abf539867a8cd481/pandas/core/dtypes/base.py#L167
+        self.assertEqual(QuantityDtype().kind, "O")
+    
+    def test_holdna(self):
+        self.assertEqual(QuantityDtype()._can_hold_na, True)
+    
+    def test_is_boolean(self):
+        self.assertFalse(QuantityDtype()._is_boolean)
+        
+    def test_names(self):
+        self.assertEqual(None, QuantityDtype().names)
+        
+    ## Actualy implemented by physipandas
     def test_type(self):
         self.assertEqual(QuantityDtype.type, Quantity)
         
@@ -33,9 +48,13 @@ class TestClassQuantityDtype(unittest.TestCase):
         self.assertEqual(QuantityDtype(m).unit, m)
     def test_creation_from_Q(self):
         self.assertEqual(QuantityDtype(W).unit, W)
-    
         
+    def test_is_dtype(self):
+        self.assertTrue(QuantityDtype.is_dtype(QuantityDtype()))
+    def test_is_dtype2(self):
+        self.assertTrue(QuantityDtype.is_dtype(QuantityDtype(m)))
         
+
     def test_creation_SI_unit_from_string(self):
         QuantityDtype("physipy[m]")
         
