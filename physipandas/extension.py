@@ -2,6 +2,8 @@ import physipy
 from physipy import Quantity, Dimension, quantify, units, DimensionError
 from physipy.quantity.utils import asqarray
 
+import scipy.stats
+
 import pandas as pd
 import re
 
@@ -357,7 +359,35 @@ class QuantityArray(ExtensionArray, ExtensionOpsMixin):
         QuantityArray
         
         """
+        
+        #master_scalar = None
+        #try:
+        #    master_scalar = next(i for i in scalars if hasattr(i, "dimension"))
+        #except StopIteration:
+        #    if isinstance(scalars, QuantityArray):
+        #        dtype = scalars._dtype
+        #    if dtype is None:
+        #        raise ValueError(
+        #            "Cannot infer dtype. No dtype specified and empty array"
+        #        )
+        #if dtype is None and not isinstance(master_scalar, Quantity):
+        #    raise ValueError("No dtype specified and not a sequence of quantities")
+        #if dtype is None and isinstance(master_scalar, Quantity):
+        #    dtype = QuantityDtype(master_scalar)
+
+        #def quantify_nan(item):
+        #    if type(item) is float:
+        #        return item * dtype._SI_unitary_quantity
+        #    return item
+
+        #if isinstance(master_scalar, Quantity):
+        #    scalars = [quantify_nan(item).value for item in scalars]
+        #    #scalars = [item.to(dtype.units).magnitude for item in scalars]
+        
+        
         values = asqarray(scalars)        
+        #if dtype is None and isinstance(values, Quantity):
+        #    dtype = QuantityDtype(values)
         return cls(values, dtype=dtype)
 
     
@@ -397,11 +427,11 @@ class QuantityArray(ExtensionArray, ExtensionOpsMixin):
         return self.__class__(self._data[item], self.dtype)
 
     
-    #def __setitem__(self, key, value):
-    #    """
-    #    Necessary for some funtions.
-    #    """
-    #    self._data.value[key] = value
+    def __setitem__(self, key, value):
+        """
+        Necessary for some funtions.
+        """
+        self._data.value[key] = value
     
     def round(self, decimals=0, *args, **kwargs):
         """
@@ -739,6 +769,12 @@ class QuantityArray(ExtensionArray, ExtensionOpsMixin):
             
         return functions[name](quantity)
 
+    
+    @classmethod
+    def _from_factorized(cls, values, original):
+        """required by quantile for eg"""
+        return cls(values, dtype=original.dtype)
+    
     
     ################
     ### REPR

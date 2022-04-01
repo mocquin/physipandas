@@ -90,10 +90,6 @@ class TestClassQuantityArray(unittest.TestCase):
         res = self.sq.clip(2*m, 5*m)
         exp = self.s.clip(2, 5)*m
         self.assertTrue(all(res==exp))
-    def test_clip(self):
-        res = self.sq.clip(3*m, 6*m)
-        exp = self.s.clip(3, 6)*m
-        print(all(res == exp))
     def test_corr(self):
         # correlation
         exp = self.s.corr(self.s)
@@ -199,11 +195,11 @@ class TestClassQuantityArray(unittest.TestCase):
     def test_kurt(self):
         exp = self.s.kurt()
         res = self.sq.kurt()
-        self.assertEqual(exp, res)
+        self.assertAlmostEqual(exp, res)
     def test_kurtosis(self):
         exp = self.s.kurtosis()
         res = self.sq.kurtosis()
-        self.assertEqual(exp, res)
+        self.assertAlmostEqual(exp, res)
     def test_le(self):
         exp = self.s.le(2)
         res = self.sq.le(2*m)
@@ -219,7 +215,7 @@ class TestClassQuantityArray(unittest.TestCase):
     def test_mad(self):
         exp = self.s.mad()*m
         res = self.sq.mad()
-        self.assertEqual(exp, res)
+        self.assertAlmostEqual(exp.value, res.value)
     def test_max(self):
         exp = self.s.max()*m
         res = self.sq.max()
@@ -365,7 +361,7 @@ class TestClassQuantityArray(unittest.TestCase):
     def test_var(self):
         res = self.sq.var()
         exp = self.s.var()*m**2
-        self.assertEqual(exp, res)
+        self.assertAlmostEqual(exp.value, res.value)
     def test_xs(self):
         exp = self.s.xs(3)*m
         res = self.sq.xs(3)
