@@ -53,6 +53,9 @@ class TestClassQuantityDtype(unittest.TestCase):
         self.assertTrue(QuantityDtype.is_dtype(QuantityDtype()))
     def test_is_dtype2(self):
         self.assertTrue(QuantityDtype.is_dtype(QuantityDtype(m)))
+    def test_is_dtype3(self):
+        self.assertFalse(QuantityDtype.is_dtype(m))
+
         
 
     def test_creation_SI_unit_from_string(self):

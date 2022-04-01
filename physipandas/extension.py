@@ -102,7 +102,7 @@ class QuantityDtype(ExtensionDtype):
     # the default implementations here will not work. 
     # QuantityDtype are parametrized by a physical quantity, so we rely on the hash of 
     # the quantity to hash the Dtype.
-    _metadata = ("unit",)
+    _metadata = ("unit",) # since "unit" is a quantity, and a quantity hash uses value and dimension
     
     
     # for construction from string
