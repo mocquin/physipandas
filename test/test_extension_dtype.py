@@ -36,10 +36,14 @@ class TestClassQuantityDtype(unittest.TestCase):
         
     def test_names(self):
         self.assertEqual(None, QuantityDtype().names)
+
+    def test_name(self):
+        self.assertEqual(str(QuantityDtype().name), "physipy[]")
         
     ## Actualy implemented by physipandas
     def test_type(self):
         self.assertEqual(QuantityDtype.type, Quantity)
+        self.assertEqual(str(QuantityDtype.type), "<class 'physipy.quantity.quantity.Quantity'>")
         
     def test_creation_from_None(self):
         self.assertEqual(QuantityDtype().unit, Quantity(1, Dimension(None)))
@@ -56,16 +60,14 @@ class TestClassQuantityDtype(unittest.TestCase):
     def test_is_dtype3(self):
         self.assertFalse(QuantityDtype.is_dtype(m))
 
-        
-
     def test_creation_SI_unit_from_string(self):
-        QuantityDtype("physipy[m]")
+        self.assertEqual(QuantityDtype("physipy[m]"), QuantityDtype.construct_from_string("physipy[m]"))
         
     def test_creation_SI_unit2_from_string(self):
-        QuantityDtype("physipy[m**2]")
+        self.assertEqual(QuantityDtype("physipy[m**2]"), QuantityDtype.construct_from_string("physipy[m**2]"))
         
     def test_creation_dimless_from_string(self):
-        QuantityDtype("physipy[]")
+        self.assertEqual(QuantityDtype("physipy[]"), QuantityDtype.construct_from_string("physipy[]"))
         
     def test_is_numeric(self):
         self.assertTrue(QuantityDtype._is_numeric)
@@ -91,12 +93,21 @@ class TestClassQuantityDtype(unittest.TestCase):
         
     
     def test_array_twin(self):
-        self.assertEqual(QuantityDtype.construct_array_type(), QuantityArray)
-    
+        self.assertEqual(QuantityDtype.construct_array_type(),   QuantityArray)
+        self.assertEqual(QuantityDtype().construct_array_type(), QuantityArray)
     
     def test_na_value(self):
         # make sure the na_value has same dimension
         self.assertEqual(QuantityDtype("physipy[m]").na_value.dimension, Dimension("L"))
         # make sure the value is a nan
         self.assertTrue(np.isnan(QuantityDtype("physipy[m]").na_value))
-        
+
+        # make sure the na_value has same dimension
+        self.assertEqual(QuantityDtype("physipy[]").na_value.dimension, Dimension(None))
+        # make sure the value is a nan
+        self.assertTrue(np.isnan(QuantityDtype("physipy[]").na_value))
+
+    def test_hashable(self):
+        import typing
+        self.assertTrue(isinstance(QuantityDtype(), typing.Hashable))
+    
