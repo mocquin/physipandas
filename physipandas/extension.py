@@ -176,7 +176,7 @@ class QuantityDtype(ExtensionDtype):
             df["quanti"]
         
         """
-        return f"physipy[{str(self.unit)}]"#self.unit.dimension.str_SI_unit()}]"
+        return f"physipy[{self.dimension.str_SI_unit()}]"#self.unit.dimension.str_SI_unit()}]"
     
 
     @property
