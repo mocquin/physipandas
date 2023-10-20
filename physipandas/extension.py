@@ -95,7 +95,6 @@ class QuantityDtype(ExtensionDtype):
     # Example : QuantityArray(..)[3] -> Quantity
     type = Quantity
     
-    
     # ExtensionDtypes are required to be hashable. The base class provides a default implementation,
     # which relies on the _metadata class attribute. _metadata should be a tuple containing the 
     # strings that define your data type. For example, with PeriodDtype that’s the freq attribute.
@@ -105,13 +104,11 @@ class QuantityDtype(ExtensionDtype):
     # the default implementations here will not work. 
     # QuantityDtype are parametrized by a physical quantity, so we rely on the hash of 
     # the quantity to hash the Dtype.
-    _metadata = ("unit",) # since "unit" is a quantity, and a quantity hash uses value and dimension
-    
+    _metadata = ("dimension",) # since "unit" is a quantity, and a quantity hash uses value and dimension
     
     # for construction from string
     # Example : "physipy[mm]" or "physipy[]"
     _match = re.compile(r"physipy\[(?P<unit>.+)\]")
-    
     
     # this will be used by QuantityArray when accessing indexes that do not
     # exist (see .take)
@@ -160,7 +157,7 @@ class QuantityDtype(ExtensionDtype):
         if isinstance(unit, Quantity):
             #qdtype_unit = QuantityDtype(unit)
             u = object.__new__(cls)
-            u.unit = unit
+            u.unit = unit._SI_unitary_quantity
             return u
         else:
             raise ValueError
