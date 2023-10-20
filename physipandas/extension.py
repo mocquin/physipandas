@@ -284,8 +284,9 @@ class QuantityArray(ExtensionArray, ExtensionOpsMixin):
         But, here we coerce the input values into Decimals.
         """
         # check if we have a list like [<Quantity:[1, 2, 3], m>]
+        # TODO : the following 2 lines do not seem right ...? missing a [0] ?
         if (isinstance(values, list) or isinstance(values, np.ndarray)) and len(values) == 1 and isinstance(values[0], Quantity):
-            values = values
+            values = values[0]
         values = quantify(values)
         self._data = values
         # Must pass the dimension to create a "custom" QuantityDtype, that displays with the proper unit
