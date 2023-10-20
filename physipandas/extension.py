@@ -273,6 +273,10 @@ from pandas.api.types import is_list_like
 class QuantityArray(ExtensionArray, ExtensionOpsMixin):
     """Abstract base class for custom 1-D array types."""
 
+    def __repr__(self, *args, **kwargs):
+        default_repr = super(QuantityArray, self).__repr__(*args, **kwargs)
+        return r"INFO: default __repr__ handled by ExtensionArray:\\n" + default_repr
+
     def __init__(self, values, dtype=None, copy=False):
         """Instantiate the array.
         If you're doing any type coercion in here, you will also need
