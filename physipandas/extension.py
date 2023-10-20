@@ -129,9 +129,20 @@ class QuantityDtype(ExtensionDtype):
         return Quantity(np.nan, self.dimension)
 
     
-    #  Return the array type associated with this dtype : QuantityArray
+    # Return the array type associated with this dtype : QuantityArray
+    # In the case of pandas period dtype, they use the same array whatever
+    # the period length
+    # def construct_array_type(cls) -> type_t[PeriodArray]:
+    #    """
+    #    Return the array type associated with this dtype.
+    #    Returns
+    #    -------
+    #    type
+    #    """
+    #    from pandas.core.arrays import PeriodArray
+    #    return PeriodArray
     @classmethod
-    def construct_array_type(cls, *args):
+    def construct_array_type(cls):
         """Return the array type associated with this dtype."""
         return QuantityArray
     
@@ -184,11 +195,6 @@ class QuantityDtype(ExtensionDtype):
     
     
     def __repr__(self):
-        """
-        Return a string representation for this object.
-        Invoked by unicode(df) in py2 only. Yields a Unicode String in both
-        py2/py3.
-        """
         return self.name
     
     
