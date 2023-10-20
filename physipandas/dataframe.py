@@ -33,6 +33,7 @@ class PhysipyDataFrameAccessor(object):
         return self.dequantify()
     
     def dequantify(self):
+        # TODO : add the dtype as string for non quantity columns ?
         def formatter_func(units):
                     #formatter = "{:" + units._REGISTRY.default_format + "}"
                     #formatter = "{:"+str(units.str_SI_unit())+"}"
@@ -64,11 +65,3 @@ class PhysipyDataFrameAccessor(object):
         df_new.index = df.index
         return df_new
 
-    def to_base_units(self):
-        obj = self._obj
-        df = self._obj
-        index = object.__getattribute__(obj, "index")
-        # name = object.__getattribute__(obj, '_name')
-        return DataFrame(
-            {col: df[col].physipy.to_base_units() for col in df.columns}, index=index
-        )

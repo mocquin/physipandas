@@ -49,13 +49,28 @@ class PhysipySeriesAccessor(object):
     
     """
     def __init__(self, pandas_obj):
+        # anything that shouldn't be used through the accessor should be made private
         self._validate(pandas_obj)
-        self.pandas_obj = pandas_obj
-        self.values = pandas_obj.values.quantity
-        self.dimension = pandas_obj.values.dimension
-        self._SI_unitary_quantity = pandas_obj.values.quantity._SI_unitary_quantity
-        self._index = pandas_obj.index
-        self._name = pandas_obj.name
+        # self._pandas_obj = pandas_obj
+        self._quantity = pandas_obj.values.quantity
+        #self.dimension = pandas_obj.values.dimension
+        #self.SI_unitary_quantity = pandas_obj.values.quantity._SI_unitary_quantity
+        #self._index = pandas_obj.index
+        #self._name = pandas_obj.name
+    
+    @property
+    def dimension(self):
+        return self._quantity.dimension
+    @property
+    def quantity(self):
+        return self._quantity
+
+    def to_quantity(self):
+        return self._quantity 
+
+    @property
+    def SI_unitary_quantity(self):
+        return self._quantity._SI_unitary_quantity
 
     @staticmethod
     def _validate(obj):
