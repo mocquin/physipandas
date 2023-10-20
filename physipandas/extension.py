@@ -20,7 +20,10 @@ from pandas.core.indexers import check_array_indexer
 from pandas.api.extensions import register_extension_dtype, register_dataframe_accessor, register_series_accessor
 
 
-
+# TODO : it seems that only the dimension is actually needed
+# so maybe would make sense to store an actual dimension
+# instead of a Quantity ?
+# the unit as a Quantity is use in .take
 @register_extension_dtype
 class QuantityDtype(ExtensionDtype):
     """A custom data type, to be paired with an ExtensionArray.
@@ -153,7 +156,6 @@ class QuantityDtype(ExtensionDtype):
             unit = cls._parse_dtype_strict(unit)
         elif unit is None:
             unit = Quantity(1, Dimension(None))
-        
         # Now that we have a quantity, we create the Dtype
         if isinstance(unit, Quantity):
             #qdtype_unit = QuantityDtype(unit)
@@ -176,7 +178,7 @@ class QuantityDtype(ExtensionDtype):
             df["quanti"]
         
         """
-        return f"physipy[{self.dimension.str_SI_unit()}]"#self.unit.dimension.str_SI_unit()}]"
+        return f"physipy[{self.dimension.str_SI_unit()}]"
     
 
     @property
@@ -202,9 +204,10 @@ class QuantityDtype(ExtensionDtype):
     def _parse_dtype_strict(cls, string_unit):
         """
         Parses the unit, which should be a string like 
-            'physipy[ANYTHIN]'
+            'physipy[ANYTHING]'
         """
-        eval_dict_units = physipy.units
+        # dict of allowed units: accepted string are the keys
+        eval_dict_units = physipy.units.copy()
 
         if isinstance(string_unit, str):
             if string_unit.startswith("physipy["):# or units.startswith("Pint["):
