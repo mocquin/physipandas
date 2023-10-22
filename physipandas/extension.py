@@ -264,6 +264,12 @@ class QuantityDtype(ExtensionDtype):
     def _is_numeric(self):
         return True
     
+    @classmethod
+    def is_dtype(cls, *args, **kwargs):
+        print('in is_dtype of QuantityDtype', args, kwargs)
+        res = ExtensionDtype.is_dtype(*args, **kwargs)
+        print(res)
+        return res
     
 
     
@@ -349,7 +355,7 @@ class QuantityArray(ExtensionArray, ExtensionOpsMixin):
         """        
         # If this is expensive to compute, return an approximate lower bound
         # on the number of bytes needed.
-        return self._itemsize * len(self)
+        return self._data.nbytes
 
     
     @classmethod

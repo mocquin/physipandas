@@ -101,3 +101,38 @@ class TestClassQuantityArray(unittest.TestCase):
     def test_equals(self):
         qa = QuantityArray(np.arange(10)*W)   
         self.assertTrue(np.all(qa.equals(qa)))
+
+    def test_clip(self):
+        s_ = np.arange(10)
+        s = pd.Series(s_)
+        sq = pd.Series(s_*m, dtype='physipy[m]')
+
+    def test_shift(self):
+        s_ = np.arange(10)
+        s = pd.Series(s_)
+        sq = pd.Series(s_*m, dtype='physipy[m]')
+        sq.shift(2)
+
+    def test_le(self):
+        s_ = np.arange(10)
+        s = pd.Series(s_)
+        sq = pd.Series(s_*m, dtype='physipy[m]')
+        exp = s.le(2)
+        res = sq.le(2*m)
+        self.assertTrue((exp==res).all())
+
+    def test_std(self):
+        s_ = np.arange(10)
+        s = pd.Series(s_)
+        sq = pd.Series(s_*m, dtype='physipy[m]')
+        
+        res = sq.std()
+        exp = s.std()*m
+        self.assertEqual(res, exp)
+
+    def test_abs(self):
+        s_ = np.arange(10)
+        s = pd.Series(s_)
+        sq = pd.Series(s_*m, dtype='physipy[m]')
+        res = (-1*sq).abs()
+        self.assertTrue((sq==res).all())
