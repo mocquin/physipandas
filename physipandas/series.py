@@ -1,5 +1,5 @@
 from pandas.api.extensions import register_series_accessor
-
+import pandas as pd
 from .extension import QuantityDtype
 
 
@@ -50,6 +50,9 @@ class PhysipySeriesAccessor(object):
     """
     def __init__(self, pandas_obj):
         self._validate(pandas_obj)
+        # keep a ref of the parent series,
+        # to acces index or name for eg
+        self._s = pandas_obj 
         self._quantity = pandas_obj.values.quantity
         
     @property
@@ -62,6 +65,14 @@ class PhysipySeriesAccessor(object):
 
     def to_quantity(self):
         return self._quantity.copy()
+    
+    def to_npseries(self, unit="suffix"):
+        #pd.Series(s.physipy.quantity.value, index=s.index, name=s.name)
+        if unit == 'suffix':
+            name = str(self._s.name) + f'[{self.SI_unitary_quantity}]'
+        elif unit=="drop":
+            name = str(self._s.name)
+        return pd.Series(self._quantity.value, index=self._s.index, name=self._s.name)
 
     @property
     def SI_unitary_quantity(self):
